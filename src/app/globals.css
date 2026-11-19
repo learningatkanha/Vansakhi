@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+/* Forest green accent, lots of white space, plain type. */
+@theme inline {
+  --color-forest-50: #eef6f0;
+  --color-forest-100: #d6eadb;
+  --color-forest-600: #2f6b3f;
+  --color-forest-700: #255733;
+  --color-forest-800: #1d4528;
+  --color-ink: #1c1f1d;
+  --color-muted: #5f6762;
+  --color-line: #e3e6e3;
+  --color-paper: #ffffff;
+  --color-wash: #f6f7f5;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-wash);
+  color: var(--color-ink);
+}
