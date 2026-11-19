@@ -14,21 +14,24 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
   const role = formData.get("role") === "admin" ? "admin" : "researcher";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Please enter a valid email address." };
 
+  // Free Supabase plans can't customise invite emails, so instead of sending an invite we add the
+  // person directly; they sign in from the login page with an emailed link.
   const admin = createAdminClient();
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: { name },
-    redirectTo: `${siteUrl()}/auth/confirm`,
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: { name },
   });
   if (error) {
-    console.error("invite:", error.message);
-    return { error: error.message.includes("already") ? "That person is already on the team." : "Could not send the invite." };
+    console.error("add member:", error.message);
+    return { error: /already|exists|registered/i.test(error.message) ? "That person is already on the team." : "Could not add them." };
   }
 
   if (role === "admin") {
     await admin.from("profiles").update({ role }).eq("id", data.user.id);
   }
   revalidatePath("/admin");
-  return { ok: `Invite sent to ${email}.` };
+  return { ok: `Added ${email}. Ask them to sign in at ${siteUrl()}/login with this email.` };
 }
 
 export async function changeRole(formData: FormData) {

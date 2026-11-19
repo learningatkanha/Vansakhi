@@ -18,7 +18,7 @@ export default async function AdminPage() {
       <PageHeader title="Admin" />
 
       <section className="mb-8">
-        <h2 className="mb-3 font-medium">Invite someone</h2>
+        <h2 className="mb-3 font-medium">Add someone to the team</h2>
         <Card>
           <InviteForm />
         </Card>
@@ -31,7 +31,7 @@ export default async function AdminPage() {
             {(members ?? []).map((m) => (
               <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
                 <div>
-                  <p className="text-sm font-medium">{m.name ?? "Invite pending"}</p>
+                  <p className="text-sm font-medium">{m.name ?? "Not signed in yet"}</p>
                   <p className="text-xs text-muted">{m.email}</p>
                 </div>
                 {m.id === me.id ? (

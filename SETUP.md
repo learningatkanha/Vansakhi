@@ -7,31 +7,27 @@ one or two keys to paste into `.env.local` (on your laptop) and later into Verce
 cp .env.example .env.local
 ```
 
-## 1. Supabase (database and login)
+## 1. Supabase (database and login) — done
 
-1. Sign up at [supabase.com](https://supabase.com) and create a project. Pick the **Mumbai (ap-south-1)** region.
-2. **SQL Editor → New query**: paste all of `supabase/migrations/0001_init.sql` and press **Run**.
-3. **Project Settings → API Keys**: copy
-   - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
+The database, privacy rules, "sign-ups off" and the login address for your laptop are already set up on the
+**Vansakhi** project. What's left:
+
+1. **Project Settings → API Keys**: copy
+   - Project URL → `NEXT_PUBLIC_SUPABASE_URL` (`https://bqutrkpzjixdetxrjdti.supabase.co`)
    - Publishable key → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - Secret key → `SUPABASE_SECRET_KEY` (never share this one)
-4. **Authentication → Sign In / Providers**: turn **off** "Allow new users to sign up". The app is invite-only.
-5. **Authentication → URL Configuration**:
-   - Site URL: `http://localhost:3000` for now (change it to your Vercel address in step 5)
-   - Redirect URLs: add `http://localhost:3000/**`
-6. **Authentication → Emails → Templates**. Change the link in two templates:
-   - **Invite user**: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite`
-   - **Magic link**: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`
-7. **Make yourself the admin.** Authentication → Users → **Invite user** → your email. Then in the SQL Editor:
+2. **Add yourself:** Authentication → Users → **Add user → Create new user**, enter your email, tick
+   **Auto Confirm User**, any password. Then make yourself admin in the SQL Editor:
 
    ```sql
    update public.profiles set role = 'admin' where email = 'your@email.com';
    ```
 
-   Open the invite email, click the link, and you're in. Invite everyone else from the app's **Admin** page.
+3. Sign in at the app's login page with that email. Add everyone else from the app's **Admin** page; they
+   sign in the same way.
 
-> Supabase's built-in email sender allows only a few emails an hour. Fine for 5 people; if invites stop
-> arriving, wait an hour or connect a free email service under Authentication → Emails → SMTP.
+> Supabase's built-in email sender allows only a few emails an hour. Fine for 5 people; if sign-in emails
+> stop arriving, wait an hour or connect a free email service under Authentication → Emails → SMTP.
 
 ## 2. Cloudflare R2 (photo and video storage)
 

@@ -24,7 +24,7 @@ export function InviteForm() {
         </select>
       </div>
       <Button type="submit" disabled={pending}>
-        {pending ? "Sending…" : "Send invite"}
+        {pending ? "Adding…" : "Add to team"}
       </Button>
       {state.ok && <p className="text-sm text-forest-700 sm:col-span-4">{state.ok}</p>}
       {state.error && <p className="text-sm text-red-700 sm:col-span-4">{state.error}</p>}
