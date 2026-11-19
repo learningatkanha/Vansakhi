@@ -23,8 +23,9 @@ The database, privacy rules, "sign-ups off" and the login address for your lapto
    update public.profiles set role = 'admin' where email = 'your@email.com';
    ```
 
-3. Sign in at the app's login page with that email. Add everyone else from the app's **Admin** page; they
-   sign in the same way.
+3. Sign in at the app's login page with that email and password. Add everyone else from the app's
+   **Admin** page: it gives you a temporary password to pass on, and they change it under their account menu.
+   Forgotten passwords: Admin → **Reset password**, or "Email me a sign-in link" on the login page.
 
 > Supabase's built-in email sender allows only a few emails an hour. Fine for 5 people; if sign-in emails
 > stop arriving, wait an hour or connect a free email service under Authentication → Emails → SMTP.

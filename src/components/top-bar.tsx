@@ -41,6 +41,9 @@ export function TopBar({ member }: { member: Member }) {
                 <p className="truncate text-xs text-muted">{member.email}</p>
               </div>
               <div className="my-1 border-t border-line" />
+              <Link href="/account" className="block rounded-lg px-3 py-2 text-sm hover:bg-wash">
+                Change password
+              </Link>
               {member.role === "admin" && (
                 <Link href="/admin" className="block rounded-lg px-3 py-2 text-sm hover:bg-wash">
                   Admin

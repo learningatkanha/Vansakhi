@@ -7,7 +7,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
     <main className="flex flex-1 items-center justify-center px-4 py-16">
       <div className="w-full max-w-sm">
         <h1 className="text-center text-2xl font-semibold">Kanha Field Journal</h1>
-        <p className="mt-2 text-center text-sm text-muted">Sign in with the email your invite was sent to.</p>
+        <p className="mt-2 text-center text-sm text-muted">Sign in with the email and password your admin gave you.</p>
         <div className="mt-8 rounded-xl border border-line bg-paper p-6">
           <LoginForm linkError={error === "link"} />
         </div>

@@ -26,7 +26,13 @@ export function InviteForm() {
       <Button type="submit" disabled={pending}>
         {pending ? "Adding…" : "Add to team"}
       </Button>
-      {state.ok && <p className="text-sm text-forest-700 sm:col-span-4">{state.ok}</p>}
+      {state.ok && (
+        <div className="rounded-lg bg-forest-50 p-3 text-sm sm:col-span-4">
+          <p>{state.ok}</p>
+          <p className="mt-1 font-mono text-base font-semibold">{state.password}</p>
+          <p className="mt-1 text-xs text-muted">Shown once. They can change it under their account menu.</p>
+        </div>
+      )}
       {state.error && <p className="text-sm text-red-700 sm:col-span-4">{state.error}</p>}
     </form>
   );

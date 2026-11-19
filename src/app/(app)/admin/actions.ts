@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/env";
+import { passwordProblem, temporaryPassword } from "@/lib/passwords";
 
-export type InviteState = { ok?: string; error?: string };
+export type InviteState = { ok?: string; password?: string; error?: string };
 
 export async function inviteMember(_prev: InviteState, formData: FormData): Promise<InviteState> {
   await requireAdmin();
@@ -14,11 +15,13 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
   const role = formData.get("role") === "admin" ? "admin" : "researcher";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Please enter a valid email address." };
 
-  // Free Supabase plans can't customise invite emails, so instead of sending an invite we add the
-  // person directly; they sign in from the login page with an emailed link.
+  // The admin adds the person directly with a temporary password and passes it on;
+  // they change it after signing in. No email is sent, so Supabase's email limit doesn't matter.
+  const password = temporaryPassword();
   const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.createUser({
     email,
+    password,
     email_confirm: true,
     user_metadata: { name },
   });
@@ -31,7 +34,24 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
     await admin.from("profiles").update({ role }).eq("id", data.user.id);
   }
   revalidatePath("/admin");
-  return { ok: `Added ${email}. Ask them to sign in at ${siteUrl()}/login with this email.` };
+  return { ok: `Added ${email}. Send them the address ${siteUrl()}/login and this temporary password:`, password };
+}
+
+export type ResetState = { password?: string; error?: string };
+
+export async function resetPassword(_prev: ResetState, formData: FormData): Promise<ResetState> {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Missing member." };
+
+  const password = temporaryPassword();
+  if (passwordProblem(password)) return { error: "Could not make a password." };
+  const { error } = await createAdminClient().auth.admin.updateUserById(id, { password });
+  if (error) {
+    console.error("reset password:", error.message);
+    return { error: "Could not reset the password." };
+  }
+  return { password };
 }
 
 export async function changeRole(formData: FormData) {

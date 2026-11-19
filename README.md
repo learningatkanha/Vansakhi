@@ -16,6 +16,6 @@ npm run build
 
 ## Status
 
-Phase 1 (foundation) is done: invite-only email login, roles, Admin page, the full database with row-level
+Phase 1 (foundation) is done: invite-only login (email and password, with emailed links as a fallback), roles, Admin page, the full database with row-level
 security, species search (GBIF), place search (Google Maps), and the R2 upload endpoint.
 Next: phase 2, recording observations with photos and video.

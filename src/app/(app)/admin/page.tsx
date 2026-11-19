@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader } from "@/components/ui";
 import { changeRole } from "./actions";
 import { InviteForm } from "./invite-form";
+import { ResetPasswordButton } from "./reset-button";
 
 export default async function AdminPage() {
   const me = await requireAdmin();
@@ -37,6 +38,8 @@ export default async function AdminPage() {
                 {m.id === me.id ? (
                   <span className="text-sm text-muted">Admin (you)</span>
                 ) : (
+                  <div className="flex flex-wrap items-center gap-4">
+                  <ResetPasswordButton id={m.id} email={m.email} />
                   <form action={changeRole} className="flex items-center gap-2">
                     <input type="hidden" name="id" value={m.id} />
                     <select
@@ -52,6 +55,7 @@ export default async function AdminPage() {
                       Save
                     </button>
                   </form>
+                  </div>
                 )}
               </li>
             ))}
