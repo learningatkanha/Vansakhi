@@ -5,13 +5,22 @@ import type { PlaceMatch } from "@/lib/places";
 import { Input } from "./ui";
 import { useSearch } from "./use-search";
 
-export function PlaceSearch({ onSelect, id = "place" }: { onSelect?: (p: PlaceMatch | null) => void; id?: string }) {
+export function PlaceSearch({
+  value,
+  onSelect,
+  id = "place",
+}: {
+  value?: PlaceMatch | null;
+  onSelect?: (p: PlaceMatch | null) => void;
+  id?: string;
+}) {
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<PlaceMatch | null>(null);
+  const [inner, setInner] = useState<PlaceMatch | null>(null);
+  const selected = value !== undefined ? value : inner;
   const { results, loading, error } = useSearch<PlaceMatch>("/api/places", selected ? "" : query, 500);
 
   function choose(p: PlaceMatch | null) {
-    setSelected(p);
+    setInner(p);
     onSelect?.(p);
   }
 

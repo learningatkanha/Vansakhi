@@ -40,3 +40,17 @@ export async function searchPlaces(query: string): Promise<PlaceMatch[]> {
   if (!res.ok) throw new Error(`Google Maps request failed (${res.status})`);
   return toPlaceMatches((await res.json()) as GeocodeResponse);
 }
+
+/** Coordinates (e.g. from a photo's GPS data) to the nearest place name. */
+export async function placeNameAt(lat: number, lng: number): Promise<PlaceMatch | null> {
+  const key = process.env.GOOGLE_MAPS_API_KEY;
+  if (!key) throw new Error("Google Maps is not set up yet (GOOGLE_MAPS_API_KEY is missing).");
+  const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+  url.searchParams.set("latlng", `${lat},${lng}`);
+  url.searchParams.set("key", key);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Google Maps request failed (${res.status})`);
+  const first = toPlaceMatches((await res.json()) as GeocodeResponse)[0];
+  // Keep the photo's exact coordinates; use Google only for the name.
+  return first ? { name: first.name, lat, lng } : null;
+}

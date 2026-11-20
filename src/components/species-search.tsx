@@ -5,13 +5,24 @@ import type { SpeciesMatch } from "@/lib/gbif";
 import { Input } from "./ui";
 import { useSearch } from "./use-search";
 
-export function SpeciesSearch({ onSelect, id = "species" }: { onSelect?: (s: SpeciesMatch | null) => void; id?: string }) {
+export function SpeciesSearch({
+  value,
+  onSelect,
+  onQueryChange,
+  id = "species",
+}: {
+  value?: SpeciesMatch | null;
+  onSelect?: (s: SpeciesMatch | null) => void;
+  onQueryChange?: (q: string) => void;
+  id?: string;
+}) {
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<SpeciesMatch | null>(null);
+  const [inner, setInner] = useState<SpeciesMatch | null>(null);
+  const selected = value !== undefined ? value : inner;
   const { results, loading, error } = useSearch<SpeciesMatch>("/api/species", selected ? "" : query);
 
   function choose(s: SpeciesMatch | null) {
-    setSelected(s);
+    setInner(s);
     onSelect?.(s);
   }
 
@@ -34,7 +45,10 @@ export function SpeciesSearch({ onSelect, id = "species" }: { onSelect?: (s: Spe
       <Input
         id={id}
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          onQueryChange?.(e.target.value);
+        }}
         placeholder="Common or scientific name, e.g. barasingha"
         autoComplete="off"
       />
