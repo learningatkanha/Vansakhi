@@ -4,7 +4,7 @@ A private web app for a small team to record wildlife and plant sightings, and f
 private field journal. Built with Next.js 16, Supabase, Cloudflare R2, Google Maps and GBIF.
 
 - **Setup:** see [SETUP.md](SETUP.md).
-- **Database schema and privacy rules:** `supabase/migrations/0001_init.sql`.
+- **Database schema and privacy rules:** `supabase/migrations/` (run the files in order).
 - **Requirements and plan:** the "Kanha Field Journal — Requirements & Tech Plan" doc.
 
 ```bash
