@@ -39,11 +39,17 @@ async function withMedia(row: Row): Promise<Observation> {
   return { ...row, title, media: await viewUrls(ordered) };
 }
 
-export async function listObservations(filter: { needsId?: boolean; observerId?: string }, limit = 48) {
+export async function listObservations(
+  filter: { needsId?: boolean; observerId?: string; between?: { from: string; to: string }; ids?: string[] },
+  limit = 48,
+) {
+  if (filter.ids && filter.ids.length === 0) return [];
   const supabase = await createClient();
   let query = supabase.from("observations").select(FIELDS).order("observed_at", { ascending: false }).limit(limit);
   if (filter.needsId) query = query.neq("id_status", "verified");
   if (filter.observerId) query = query.eq("observer_id", filter.observerId);
+  if (filter.between) query = query.gte("observed_at", filter.between.from).lt("observed_at", filter.between.to);
+  if (filter.ids) query = query.in("id", filter.ids);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return Promise.all((data as unknown as Row[]).map(withMedia));

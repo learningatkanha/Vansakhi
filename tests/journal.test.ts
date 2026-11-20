@@ -1,0 +1,71 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { cleanDoc, docText, istDayRange, mediaIdsIn, parseTags, searchTerm, withMediaUrls } from "../src/lib/journal-doc.ts";
+
+const ID1 = "11111111-1111-4111-8111-111111111111";
+const ID2 = "22222222-2222-4222-8222-222222222222";
+
+test("cleanDoc keeps the editor's content and drops anything else", () => {
+  const doc = cleanDoc({
+    type: "doc",
+    content: [
+      { type: "heading", attrs: { level: 7 }, content: [{ type: "text", text: "Morning drive" }] },
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "Saw a ", marks: [{ type: "bold" }, { type: "evil" }] },
+          { type: "text", text: "tiger", marks: [{ type: "link", attrs: { href: "javascript:alert(1)" } }] },
+          { type: "text", text: " near ", marks: [{ type: "link", attrs: { href: "https://maps.google.com", onclick: "x" } }] },
+        ],
+      },
+      { type: "script", content: [{ type: "text", text: "bad" }] },
+      { type: "media", attrs: { mediaId: ID1, kind: "video", src: "https://signed.example/expiring", extra: 1 } },
+      { type: "media", attrs: { mediaId: "not-a-uuid" } },
+    ],
+  });
+  assert.deepEqual(doc, {
+    type: "doc",
+    content: [
+      { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Morning drive" }] },
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "Saw a ", marks: [{ type: "bold" }] },
+          { type: "text", text: "tiger" },
+          { type: "text", text: " near ", marks: [{ type: "link", attrs: { href: "https://maps.google.com" } }] },
+        ],
+      },
+      { type: "media", attrs: { mediaId: ID1, kind: "video" } },
+    ],
+  });
+  assert.equal(cleanDoc({ type: "paragraph" }), null);
+  assert.equal(cleanDoc("hello"), null);
+});
+
+test("media ids, view links and plain text", () => {
+  const doc = {
+    type: "doc",
+    content: [
+      { type: "paragraph", content: [{ type: "text", text: "Waterhole" }, { type: "hardBreak" }, { type: "text", text: "at dusk" }] },
+      { type: "media", attrs: { mediaId: ID1, kind: "photo" } },
+      { type: "bulletList", content: [{ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "Sambar" }] }] }] },
+      { type: "media", attrs: { mediaId: ID2, kind: "photo" } },
+      { type: "media", attrs: { mediaId: ID1, kind: "photo" } },
+    ],
+  };
+  assert.deepEqual(mediaIdsIn(doc), [ID1, ID2]);
+  assert.equal(docText(doc), "Waterhole at dusk\nSambar");
+
+  // Media the reader can't see is left out; the rest gets its link.
+  const shown = withMediaUrls(doc, new Map([[ID1, "https://view/1"]]));
+  assert.deepEqual(mediaIdsIn(shown), [ID1]);
+  assert.equal(shown.content!.filter((n) => n.type === "media").length, 2);
+  assert.equal(shown.content![1].attrs!.src, "https://view/1");
+});
+
+test("tags, search words and India-time days", () => {
+  assert.deepEqual(parseTags(" Birds, #tiger ,, birds, Nest "), ["birds", "tiger", "nest"]);
+  assert.equal(searchTerm("  tiger, (cub)*  "), "tiger cub");
+  assert.deepEqual(istDayRange("2026-11-20"), { from: "2026-11-19T18:30:00.000Z", to: "2026-11-20T18:30:00.000Z" });
+  assert.equal(istDayRange("20-11-2026"), null);
+});

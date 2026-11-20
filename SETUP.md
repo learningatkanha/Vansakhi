@@ -85,6 +85,14 @@ you've set up shows "Connected".
    - Supabase → Authentication → URL Configuration: Site URL, and Redirect URLs (`https://…vercel.app/**`)
    - Cloudflare R2 → bucket CORS policy → `AllowedOrigins`
 
+## Database updates
+
+When a new file appears in `supabase/migrations/`, open Supabase → **SQL Editor**, paste the file's contents
+and **Run**, before the new version of the app goes live. Run each file once, in number order.
+
+- `0005_journal_search.sql` (phase 3, journal): search text, tag index, entry coordinates, and a tighter rule
+  for which photos an entry may link to.
+
 ## Later phases
 
 - **Phase 5 (species ID):** create a key at [console.anthropic.com](https://console.anthropic.com) →
