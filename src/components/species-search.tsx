@@ -5,6 +5,28 @@ import type { SpeciesMatch } from "@/lib/gbif";
 import { Input } from "./ui";
 import { useSearch } from "./use-search";
 
+/** A small real photo of the species, or a leaf when none is found. */
+function SpeciesThumb({ name }: { name: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-wash text-lg">
+        🌿
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/api/species/photo?name=${encodeURIComponent(name)}`}
+      alt=""
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="h-12 w-12 shrink-0 rounded-md bg-wash object-cover"
+    />
+  );
+}
+
 export function SpeciesSearch({
   value,
   onSelect,
@@ -30,8 +52,9 @@ export function SpeciesSearch({
 
   if (selected) {
     return (
-      <div className="flex items-center justify-between rounded-lg border border-forest-600 bg-forest-50 px-3 py-2">
-        <div>
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-forest-600 bg-forest-50 px-3 py-2">
+        <SpeciesThumb key={selected.scientificName} name={selected.scientificName} />
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{selected.commonName ?? selected.scientificName}</p>
           <p className="text-xs italic text-muted">{selected.scientificName}</p>
         </div>
@@ -60,12 +83,15 @@ export function SpeciesSearch({
         <ul className="mt-2 divide-y divide-line overflow-hidden rounded-lg border border-line bg-paper">
           {results.map((s) => (
             <li key={s.gbifKey}>
-              <button type="button" onClick={() => choose(s)} className="w-full px-3 py-2 text-left hover:bg-wash">
-                <span className="block text-sm font-medium">{s.commonName ?? s.scientificName}</span>
-                <span className="block text-xs text-muted">
-                  <i>{s.scientificName}</i>
-                  {s.group ? ` · ${s.group}` : ""}
-                  {s.hindiName ? ` · ${s.hindiName}` : ""}
+              <button type="button" onClick={() => choose(s)} className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-wash">
+                <SpeciesThumb key={s.scientificName} name={s.scientificName} />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">{s.commonName ?? s.scientificName}</span>
+                  <span className="block text-xs text-muted">
+                    <i>{s.scientificName}</i>
+                    {s.group ? ` · ${s.group}` : ""}
+                    {s.hindiName ? ` · ${s.hindiName}` : ""}
+                  </span>
                 </span>
               </button>
             </li>
