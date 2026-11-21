@@ -17,13 +17,14 @@ export type UploadItem = {
   lat?: number;
   lng?: number;
   error?: string;
+  mediaId?: string; // set for photos already saved with the sighting (when editing)
 };
 
-export function MediaUploader({ onChange }: { onChange: (items: UploadItem[]) => void }) {
-  const [items, setItems] = useState<UploadItem[]>([]);
+export function MediaUploader({ onChange, initial = [] }: { onChange: (items: UploadItem[]) => void; initial?: UploadItem[] }) {
+  const [items, setItems] = useState<UploadItem[]>(initial);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const latest = useRef<UploadItem[]>([]);
+  const latest = useRef<UploadItem[]>(initial);
 
   function update(id: string, patch: Partial<UploadItem>) {
     latest.current = latest.current.map((it) => (it.id === id ? { ...it, ...patch } : it));
@@ -91,7 +92,9 @@ export function MediaUploader({ onChange }: { onChange: (items: UploadItem[]) =>
         <ul className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4">
           {items.map((it) => (
             <li key={it.id} className="relative overflow-hidden rounded-lg border border-line bg-wash">
-              {it.kind === "photo" ? (
+              {!it.previewUrl ? (
+                <div className="aspect-square w-full" />
+              ) : it.kind === "photo" ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={it.previewUrl} alt={it.name} className="aspect-square w-full object-cover" />
               ) : (

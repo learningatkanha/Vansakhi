@@ -10,13 +10,15 @@ export function SpeciesSearch({
   onSelect,
   onQueryChange,
   id = "species",
+  initialQuery = "",
 }: {
   value?: SpeciesMatch | null;
   onSelect?: (s: SpeciesMatch | null) => void;
   onQueryChange?: (q: string) => void;
   id?: string;
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [inner, setInner] = useState<SpeciesMatch | null>(null);
   const selected = value !== undefined ? value : inner;
   const { results, loading, error } = useSearch<SpeciesMatch>("/api/species", selected ? "" : query);

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useRef, useState } from "react";
 import { Button, Card, Input, Label } from "@/components/ui";
 import { PlaceSearch } from "@/components/place-search";
@@ -23,19 +24,33 @@ const DETAIL_FIELDS = [
   { name: "weather", label: "Weather", placeholder: "clear, misty, light rain…" },
 ] as const;
 
-export function AddForm() {
+/** A saved sighting, for the edit page. */
+export type ObservationInitial = {
+  id: string;
+  species: SpeciesMatch | null;
+  speciesGuess: string;
+  observedAt: string; // ISO
+  place: PlaceMatch | null;
+  count: number | null;
+  notes: string;
+  details: Record<string, string>;
+  media: UploadItem[];
+};
+
+export function AddForm({ initial }: { initial?: ObservationInitial }) {
   const [state, action, pending] = useActionState<SaveState, FormData>(saveObservation, {});
-  const [media, setMedia] = useState<UploadItem[]>([]);
-  const [species, setSpecies] = useState<SpeciesMatch | null>(null);
-  const [speciesGuess, setSpeciesGuess] = useState("");
-  const [place, setPlace] = useState<PlaceMatch | null>(null);
+  const [media, setMedia] = useState<UploadItem[]>(initial?.media ?? []);
+  const [species, setSpecies] = useState<SpeciesMatch | null>(initial?.species ?? null);
+  const [speciesGuess, setSpeciesGuess] = useState(initial?.speciesGuess ?? "");
+  const [place, setPlace] = useState<PlaceMatch | null>(initial?.place ?? null);
   const [placeNote, setPlaceNote] = useState<string | null>(null);
-  const [when, setWhen] = useState(() => toLocalInput(new Date()));
-  const [count, setCount] = useState("");
-  const [notes, setNotes] = useState("");
-  const [details, setDetails] = useState<Record<string, string>>({});
-  const [showDetails, setShowDetails] = useState(false);
-  const touched = useRef({ when: false, place: false });
+  const [when, setWhen] = useState(() => toLocalInput(initial ? new Date(initial.observedAt) : new Date()));
+  const [count, setCount] = useState(initial?.count ? String(initial.count) : "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [details, setDetails] = useState<Record<string, string>>(initial?.details ?? {});
+  const [showDetails, setShowDetails] = useState(() => Object.values(initial?.details ?? {}).some(Boolean));
+  // When editing, never overwrite the saved date or place with a new photo's EXIF data.
+  const touched = useRef({ when: !!initial, place: !!initial });
 
   // Use the first photo's date and GPS, unless the person has already filled those in.
   function onMediaChange(items: UploadItem[]) {
@@ -62,6 +77,7 @@ export function AddForm() {
   const failed = media.some((m) => m.status === "error");
 
   const payload: ObservationInput = {
+    id: initial?.id,
     species,
     speciesGuess,
     observedAt: when ? new Date(when).toISOString() : "",
@@ -71,18 +87,18 @@ export function AddForm() {
     details,
     media: media
       .filter((m) => m.status === "done" && m.key)
-      .map((m) => ({ key: m.key!, kind: m.kind, mime: m.mime, size: m.size, takenAt: m.takenAt, lat: m.lat, lng: m.lng })),
+      .map((m) => ({ key: m.key!, kind: m.kind, mime: m.mime, size: m.size, takenAt: m.takenAt, lat: m.lat, lng: m.lng, mediaId: m.mediaId })),
   };
 
   return (
     <form action={action}>
       <input type="hidden" name="payload" value={JSON.stringify(payload)} />
       <Card className="max-w-2xl space-y-6">
-        <MediaUploader onChange={onMediaChange} />
+        <MediaUploader onChange={onMediaChange} initial={initial?.media} />
 
         <div>
           <Label htmlFor="species">Species</Label>
-          <SpeciesSearch value={species} onSelect={setSpecies} onQueryChange={setSpeciesGuess} />
+          <SpeciesSearch value={species} onSelect={setSpecies} onQueryChange={setSpeciesGuess} initialQuery={initial?.speciesGuess} />
           <p className="mt-1.5 text-xs text-muted">
             Not sure? Leave it, or type what you think it is, and the team can help identify it.
           </p>
@@ -159,8 +175,13 @@ export function AddForm() {
         {failed && <p className="text-sm text-amber-800">Some uploads failed. Remove them (✕) or try adding them again.</p>}
 
         <Button type="submit" disabled={pending || uploading} className="w-full">
-          {uploading ? "Waiting for uploads…" : pending ? "Saving…" : "Save observation"}
+          {uploading ? "Waiting for uploads…" : pending ? "Saving…" : initial ? "Save changes" : "Save observation"}
         </Button>
+        {initial && (
+          <Link href={`/observations/${initial.id}`} className="block text-center text-sm text-muted hover:underline">
+            Cancel
+          </Link>
+        )}
       </Card>
     </form>
   );

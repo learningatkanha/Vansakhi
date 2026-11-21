@@ -88,7 +88,12 @@ export default async function ObservationPage({ params }: PageProps<"/observatio
             ← Back to sightings
           </Link>
           {(mine || member.role === "admin") && (
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-4">
+              {mine && (
+                <Link href={`/observations/${obs.id}/edit`} className="font-medium text-forest-700 hover:underline">
+                  Edit
+                </Link>
+              )}
               <DeleteButton id={obs.id} />
             </div>
           )}

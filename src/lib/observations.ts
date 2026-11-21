@@ -3,9 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { viewUrls } from "@/lib/media";
 
 const FIELDS = `id, observer_id, observed_at, place_name, lat, lng, count, notes, life_stage, sex, behaviour, habitat, weather, id_status, species_guess,
-  species:species_id (id, common_name, scientific_name, hindi_name, group_name),
+  species:species_id (id, gbif_key, common_name, scientific_name, hindi_name, group_name),
   observer:observer_id (name),
-  observation_media (position, media:media_id (file_key, media_type))`;
+  observation_media (position, media:media_id (id, file_key, media_type))`;
 
 type Row = {
   id: string;
@@ -23,14 +23,14 @@ type Row = {
   weather: string | null;
   id_status: "needs_id" | "suggested" | "verified";
   species_guess: string | null;
-  species: { id: number; common_name: string | null; scientific_name: string; hindi_name: string | null; group_name: string | null } | null;
+  species: { id: number; gbif_key: number | null; common_name: string | null; scientific_name: string; hindi_name: string | null; group_name: string | null } | null;
   observer: { name: string | null } | null;
-  observation_media: { position: number; media: { file_key: string; media_type: string } | null }[];
+  observation_media: { position: number; media: { id: string; file_key: string; media_type: string } | null }[];
 };
 
 export type Observation = Omit<Row, "observation_media"> & {
   title: string;
-  media: { file_key: string; media_type: string; url: string | null }[];
+  media: { id: string; file_key: string; media_type: string; url: string | null }[];
 };
 
 async function withMedia(row: Row): Promise<Observation> {

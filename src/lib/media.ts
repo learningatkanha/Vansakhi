@@ -4,7 +4,7 @@ import { signedViewUrl } from "@/lib/r2";
 export type MediaRef = { file_key: string; media_type: string };
 
 /** Signed view links for a list of media, in the same order. Missing storage keys give null. */
-export async function viewUrls(items: MediaRef[]) {
+export async function viewUrls<T extends MediaRef>(items: T[]) {
   return Promise.all(
     items.map(async (m) => {
       try {
