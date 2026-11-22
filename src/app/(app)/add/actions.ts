@@ -151,5 +151,6 @@ export async function saveObservation(_prev: SaveState, formData: FormData): Pro
 
   revalidatePath("/");
   revalidatePath(`/observations/${obs.id}`);
-  redirect(`/observations/${obs.id}`);
+  // A new sighting lands on its page with a prompt to write about it in the journal.
+  redirect(input.id ? `/observations/${obs.id}` : `/observations/${obs.id}?saved=1`);
 }

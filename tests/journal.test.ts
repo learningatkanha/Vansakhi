@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cleanDoc, docText, istDayRange, mediaIdsIn, parseTags, searchTerm, withMediaUrls } from "../src/lib/journal-doc.ts";
+import { cleanDoc, docText, istDateOf, istDayRange, mediaIdsIn, parseTags, searchTerm, withMediaUrls } from "../src/lib/journal-doc.ts";
 
 const ID1 = "11111111-1111-4111-8111-111111111111";
 const ID2 = "22222222-2222-4222-8222-222222222222";
@@ -68,4 +68,10 @@ test("tags, search words and India-time days", () => {
   assert.equal(searchTerm("  tiger, (cub)*  "), "tiger cub");
   assert.deepEqual(istDayRange("2026-11-20"), { from: "2026-11-19T18:30:00.000Z", to: "2026-11-20T18:30:00.000Z" });
   assert.equal(istDayRange("20-11-2026"), null);
+});
+
+test("istDateOf gives the India date of a moment", () => {
+  assert.equal(istDateOf("2026-11-20T20:00:00Z"), "2026-11-21"); // 1:30 am next day in India
+  assert.equal(istDateOf("2026-11-20T10:00:00Z"), "2026-11-20");
+  assert.equal(istDateOf("not a date"), null);
 });

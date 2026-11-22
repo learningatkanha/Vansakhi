@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { viewUrls } from "@/lib/media";
+import type { Observation } from "@/lib/observations";
 import { cleanDoc, EMPTY_DOC, mediaIdsIn, searchTerm, withMediaUrls, type DocNode } from "@/lib/journal-doc";
 
 export type EntrySummary = {
@@ -116,4 +117,57 @@ export async function getEntry(id: string): Promise<Entry | null> {
     owner: row.owner,
     observationIds: row.links.flatMap((l) => (l.to_observation_id ? [l.to_observation_id] : [])),
   };
+}
+
+/** A sighting as shown in the journal editor's lists. `by` is null for your own. */
+export type DaySighting = { id: string; title: string; when: string; thumb: string | null; place: string | null; by: string | null };
+
+export function toDaySighting(o: Observation, me: string): DaySighting {
+  return {
+    id: o.id,
+    title: o.title,
+    when: new Date(o.observed_at).toLocaleString("en-IN", {
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: "Asia/Kolkata",
+    }),
+    thumb: o.media.find((x) => x.media_type === "photo")?.url ?? null,
+    place: o.place_name?.split(",")[0] ?? null,
+    by: o.observer_id === me ? null : (o.observer?.name ?? "a teammate"),
+  };
+}
+
+export type LinkedEntry = { id: string; title: string; entry_date: string; owner_id: string; is_shared: boolean; owner: { name: string | null } | null };
+
+/** Journal entries linked to a sighting that this reader may see (row-level security hides private ones). */
+export async function entriesForSighting(observationId: string): Promise<LinkedEntry[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("links")
+    .select("entry:from_entry_id (id, title, entry_date, owner_id, is_shared, owner:owner_id (name))")
+    .eq("to_observation_id", observationId)
+    .not("from_entry_id", "is", null);
+  if (error) {
+    console.error("entries for sighting:", error.message);
+    return [];
+  }
+  const seen = new Set<string>();
+  return (data as unknown as { entry: LinkedEntry | null }[])
+    .flatMap((r) => (r.entry && !seen.has(r.entry.id) && seen.add(r.entry.id) ? [r.entry] : []))
+    .sort((a, b) => b.entry_date.localeCompare(a.entry_date));
+}
+
+/** Your most recent entries, for the "add to an existing entry" picker. */
+export async function myRecentEntries(memberId: string): Promise<{ id: string; title: string; entry_date: string }[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("journal_entries")
+    .select("id, title, entry_date")
+    .eq("owner_id", memberId)
+    .order("entry_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(100);
+  return data ?? [];
 }

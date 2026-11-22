@@ -6,6 +6,7 @@ import { getCurrentMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { signedViewUrl } from "@/lib/r2";
 import { listObservations } from "@/lib/observations";
+import { toDaySighting, type DaySighting } from "@/lib/journal";
 import { cleanDoc, docText, istDayRange, mediaIdsIn, parseTags, todayIST, withMediaUrls } from "@/lib/journal-doc";
 
 export type EntryInput = {
@@ -142,19 +143,49 @@ export async function addEntryMedia(m: UploadedMedia): Promise<{ id: string; url
   }
 }
 
-export type DaySighting = { id: string; title: string; time: string; thumb: string | null; place: string | null };
-
-/** Your own sightings on a given day, offered for linking to the entry. */
+/** Everyone's sightings on a given day (yours first), offered for linking to the entry. */
 export async function sightingsOnDay(date: string): Promise<DaySighting[]> {
   const member = await getCurrentMember();
   const between = istDayRange(date);
   if (!between) return [];
-  const list = await listObservations({ observerId: member.id, between }, 50);
-  return list.map((o) => ({
-    id: o.id,
-    title: o.title,
-    time: new Date(o.observed_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }),
-    thumb: o.media.find((x) => x.media_type === "photo")?.url ?? null,
-    place: o.place_name?.split(",")[0] ?? null,
-  }));
+  const list = await listObservations({ between }, 100);
+  const rows = list.map((o) => toDaySighting(o, member.id));
+  return [...rows.filter((s) => s.by === null), ...rows.filter((s) => s.by !== null)];
+}
+
+/** Links one of your entries to a sighting (from the sighting's page). */
+export async function linkEntry(formData: FormData) {
+  const member = await getCurrentMember();
+  const entryId = String(formData.get("entryId") ?? "");
+  const observationId = String(formData.get("observationId") ?? "");
+  if (!UUID.test(entryId) || !UUID.test(observationId)) return;
+  const supabase = await createClient();
+  const { data: entry } = await supabase.from("journal_entries").select("id").eq("id", entryId).eq("owner_id", member.id).maybeSingle();
+  if (!entry) return;
+  const { data: existing } = await supabase
+    .from("links")
+    .select("id")
+    .eq("from_entry_id", entryId)
+    .eq("to_observation_id", observationId)
+    .limit(1);
+  if (!existing?.length) {
+    const { error } = await supabase.from("links").insert({ from_entry_id: entryId, to_observation_id: observationId });
+    if (error) console.error("link entry:", error.message);
+  }
+  revalidatePath(`/observations/${observationId}`);
+  revalidatePath(`/journal/${entryId}`);
+}
+
+/** Removes the link between one of your entries and a sighting. Neither is deleted. */
+export async function unlinkEntry(formData: FormData) {
+  await getCurrentMember();
+  const entryId = String(formData.get("entryId") ?? "");
+  const observationId = String(formData.get("observationId") ?? "");
+  if (!UUID.test(entryId) || !UUID.test(observationId)) return;
+  const supabase = await createClient();
+  // Row-level security allows this only for the entry's owner.
+  const { error } = await supabase.from("links").delete().eq("from_entry_id", entryId).eq("to_observation_id", observationId);
+  if (error) console.error("unlink entry:", error.message);
+  revalidatePath(`/observations/${observationId}`);
+  revalidatePath(`/journal/${entryId}`);
 }

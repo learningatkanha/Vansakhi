@@ -1,13 +1,14 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Button, Input, Label } from "@/components/ui";
 import { PlaceSearch } from "@/components/place-search";
 import { JournalEditor } from "@/components/journal-editor";
 import type { PlaceMatch } from "@/lib/places";
 import { todayIST, type DocNode } from "@/lib/journal-doc";
-import { saveEntry, sightingsOnDay, type DaySighting, type EntryInput, type SaveState } from "./actions";
+import type { DaySighting } from "@/lib/journal";
+import { saveEntry, sightingsOnDay, type EntryInput, type SaveState } from "./actions";
 
 export type EntryFormValues = {
   id: string | null;
@@ -21,7 +22,29 @@ export type EntryFormValues = {
   observationIds: string[];
 };
 
-export function EntryForm({ initial }: { initial: EntryFormValues }) {
+function SightingRow({ s, children }: { s: DaySighting; children?: ReactNode }) {
+  return (
+    <>
+      {s.thumb ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={s.thumb} alt="" className="h-9 w-9 shrink-0 rounded object-cover" />
+      ) : (
+        <span className="h-9 w-9 shrink-0 rounded bg-wash" />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">{s.title}</span>
+        <span className="block truncate text-xs text-muted">
+          {s.when}
+          {s.place ? ` · ${s.place}` : ""}
+          {s.by ? ` · ${s.by}` : ""}
+        </span>
+      </span>
+      {children}
+    </>
+  );
+}
+
+export function EntryForm({ initial, initialSightings }: { initial: EntryFormValues; initialSightings: DaySighting[] }) {
   const [state, action, pending] = useActionState<SaveState, FormData>(saveEntry, {});
   const [title, setTitle] = useState(initial.title);
   const [body, setBody] = useState<DocNode>(initial.body);
@@ -31,25 +54,29 @@ export function EntryForm({ initial }: { initial: EntryFormValues }) {
   const [tags, setTags] = useState(initial.tags);
   const [isShared, setIsShared] = useState(initial.isShared);
   const [linked, setLinked] = useState<string[]>(initial.observationIds);
-  const [sightings, setSightings] = useState<DaySighting[] | null>(null);
+  // Every sighting we have details for, so linked ones from other days still show their name and photo.
+  const [known, setKnown] = useState<Record<string, DaySighting>>(() => Object.fromEntries(initialSightings.map((s) => [s.id, s])));
+  const [browseDate, setBrowseDate] = useState(initial.entryDate);
+  const [day, setDay] = useState<{ date: string; list: DaySighting[] } | null>(null);
   const [uploading, setUploading] = useState(false);
-  const pickedByHand = useRef(initial.id !== null);
+  // A new entry links your own sightings from its date, until you pick by hand or it came from a sighting.
+  const pickedByHand = useRef(initial.id !== null || initial.observationIds.length > 0);
   const dirty = useRef(false);
 
-  // Offer the sightings you made on the entry's date. A new entry links all of them until you untick one.
   useEffect(() => {
     let live = true;
-    sightingsOnDay(entryDate)
+    sightingsOnDay(browseDate)
       .then((list) => {
         if (!live) return;
-        setSightings(list);
-        if (!pickedByHand.current) setLinked(list.map((s) => s.id));
+        setDay({ date: browseDate, list });
+        setKnown((k) => ({ ...k, ...Object.fromEntries(list.map((s) => [s.id, s])) }));
+        if (!pickedByHand.current) setLinked(list.filter((s) => s.by === null).map((s) => s.id));
       })
-      .catch(() => live && setSightings([]));
+      .catch(() => live && setDay({ date: browseDate, list: [] }));
     return () => {
       live = false;
     };
-  }, [entryDate]);
+  }, [browseDate]);
 
   // Warn before leaving with unsaved writing.
   useEffect(() => {
@@ -61,7 +88,12 @@ export function EntryForm({ initial }: { initial: EntryFormValues }) {
   }, [pending]);
 
   const touch = () => (dirty.current = true);
-  const otherDays = sightings ? linked.filter((id) => !sightings.some((s) => s.id === id)).length : 0;
+  const toggle = (id: string) => {
+    touch();
+    pickedByHand.current = true;
+    setLinked(linked.includes(id) ? linked.filter((x) => x !== id) : [...linked, id]);
+  };
+  const dayList = day && day.date === browseDate ? day.list : null;
 
   const payload: EntryInput = {
     id: initial.id,
@@ -120,7 +152,10 @@ export function EntryForm({ initial }: { initial: EntryFormValues }) {
             required
             onChange={(e) => {
               touch();
-              if (e.target.value) setEntryDate(e.target.value);
+              if (e.target.value) {
+                setEntryDate(e.target.value);
+                setBrowseDate(e.target.value);
+              }
             }}
           />
         </div>
@@ -166,60 +201,66 @@ export function EntryForm({ initial }: { initial: EntryFormValues }) {
         </div>
 
         <div>
-          <p className="mb-1.5 text-sm font-medium">Sightings that day</p>
-          {sightings === null && <p className="text-xs text-muted">Looking…</p>}
-          {sightings?.length === 0 && <p className="text-xs text-muted">You recorded no sightings on this date.</p>}
-          {sightings && sightings.length > 0 && (
+          <p className="mb-1.5 text-sm font-medium">Linked sightings</p>
+          {linked.length === 0 && <p className="text-xs text-muted">None yet. Tick sightings below to link them.</p>}
+          {linked.length > 0 && (
             <ul className="space-y-1.5">
-              {sightings.map((s) => {
-                const on = linked.includes(s.id);
+              {linked.map((id) => {
+                const s = known[id] ?? { id, title: "A sighting", when: "", thumb: null, place: null, by: null };
                 return (
-                  <li key={s.id}>
-                    <label className={`flex cursor-pointer items-center gap-2 rounded-lg border p-1.5 text-sm ${on ? "border-forest-600 bg-forest-50" : "border-line bg-paper"}`}>
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={() => {
-                          touch();
-                          pickedByHand.current = true;
-                          setLinked(on ? linked.filter((x) => x !== s.id) : [...linked, s.id]);
-                        }}
-                        className="accent-forest-600"
-                      />
-                      {s.thumb ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={s.thumb} alt="" className="h-9 w-9 shrink-0 rounded object-cover" />
-                      ) : (
-                        <span className="h-9 w-9 shrink-0 rounded bg-wash" />
-                      )}
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">{s.title}</span>
-                        <span className="block truncate text-xs text-muted">
-                          {s.time}
-                          {s.place ? ` · ${s.place}` : ""}
-                        </span>
-                      </span>
-                    </label>
+                  <li key={id} className="flex items-center gap-2 rounded-lg border border-forest-600 bg-forest-50 p-1.5 text-sm">
+                    <SightingRow s={s}>
+                      <button
+                        type="button"
+                        onClick={() => toggle(id)}
+                        aria-label={`Unlink ${s.title}`}
+                        title="Unlink"
+                        className="shrink-0 rounded-full px-2 text-lg leading-none text-muted hover:text-ink"
+                      >
+                        ×
+                      </button>
+                    </SightingRow>
                   </li>
                 );
               })}
             </ul>
           )}
-          {otherDays > 0 && (
-            <p className="mt-1.5 text-xs text-muted">
-              Also linked: {otherDays} sighting{otherDays > 1 ? "s" : ""} from other days.{" "}
-              <button
-                type="button"
-                className="text-forest-700 hover:underline"
-                onClick={() => {
-                  touch();
-                  setLinked(linked.filter((id) => sightings?.some((s) => s.id === id)));
-                }}
-              >
-                Unlink
-              </button>
-            </p>
-          )}
+        </div>
+
+        <div>
+          <Label htmlFor="browse-date">Find sightings by day</Label>
+          <Input
+            id="browse-date"
+            type="date"
+            value={browseDate}
+            max={todayIST()}
+            onChange={(e) => {
+              if (!e.target.value) return;
+              pickedByHand.current = true;
+              setBrowseDate(e.target.value);
+            }}
+          />
+          <div className="mt-2">
+            {dayList === null && <p className="text-xs text-muted">Looking…</p>}
+            {dayList?.length === 0 && <p className="text-xs text-muted">No sightings were recorded on this day.</p>}
+            {dayList && dayList.length > 0 && (
+              <ul className="max-h-80 space-y-1.5 overflow-y-auto">
+                {dayList.map((s) => {
+                  const on = linked.includes(s.id);
+                  return (
+                    <li key={s.id}>
+                      <label
+                        className={`flex cursor-pointer items-center gap-2 rounded-lg border p-1.5 text-sm ${on ? "border-forest-600 bg-forest-50" : "border-line bg-paper"}`}
+                      >
+                        <input type="checkbox" checked={on} onChange={() => toggle(s.id)} className="accent-forest-600" />
+                        <SightingRow s={s} />
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
 
         <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-line bg-paper p-3 text-sm">
@@ -234,7 +275,7 @@ export function EntryForm({ initial }: { initial: EntryFormValues }) {
           />
           <span>
             <span className="font-medium">Share with the team</span>
-            <span className="block text-xs text-muted">Off: only you can see this entry.</span>
+            <span className="block text-xs text-muted">Untick to keep this entry to yourself.</span>
           </span>
         </label>
 

@@ -134,6 +134,12 @@ export function istDayRange(date: string): { from: string; to: string } | null {
   return { from: from.toISOString(), to: new Date(+from + 86_400_000).toISOString() };
 }
 
+/** The India-time date of a moment, "2026-11-20". */
+export function istDateOf(iso: string): string | null {
+  const d = new Date(iso);
+  return isNaN(+d) ? null : d.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+}
+
 /** Today's date in India time, "2026-11-20". */
 export function todayIST() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });

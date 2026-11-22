@@ -38,12 +38,12 @@ The database, privacy rules, "sign-ups off" and the login address for your lapto
 3. Your **Account ID** is shown on the R2 overview page. → `R2_ACCOUNT_ID`
 4. **Manage API tokens → Create API token**: permission **Object Read & Write**, limited to the `kanha-media`
    bucket. Copy the **Access Key ID** → `R2_ACCESS_KEY_ID` and **Secret Access Key** → `R2_SECRET_ACCESS_KEY`.
-5. Open the bucket → **Settings → CORS policy** → paste (add your Vercel address in step 5):
+5. Open the bucket → **Settings → CORS policy** → paste (swap in your own Vercel address if it differs):
 
    ```json
    [
      {
-       "AllowedOrigins": ["http://localhost:3000"],
+       "AllowedOrigins": ["http://localhost:3000", "https://vansakhi.vercel.app"],
        "AllowedMethods": ["GET", "PUT"],
        "AllowedHeaders": ["Content-Type"],
        "MaxAgeSeconds": 3600
