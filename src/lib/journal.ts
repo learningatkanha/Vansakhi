@@ -68,11 +68,21 @@ export type Entry = {
   observationIds: string[];
 };
 
-export type JournalFilter = { scope: "mine" | "team"; memberId: string; q?: string; tag?: string; month?: string };
+export type JournalFilter = { scope: "mine" | "team"; memberId: string; q?: string; tag?: string; month?: string; observationId?: string };
 
 /** Entries for the journal timeline, newest first. Row-level security keeps other people's private entries out. */
 export async function listEntries(f: JournalFilter): Promise<EntrySummary[]> {
   const supabase = await createClient();
+
+  // Only the entries linked to one sighting.
+  let onlyIds: string[] | null = null;
+  if (f.observationId) {
+    if (!/^[0-9a-f-]{36}$/i.test(f.observationId)) return [];
+    const { data: links } = await supabase.from("links").select("from_entry_id").eq("to_observation_id", f.observationId);
+    onlyIds = [...new Set((links ?? []).flatMap((l) => (l.from_entry_id ? [l.from_entry_id] : [])))];
+    if (onlyIds.length === 0) return [];
+  }
+
   let query = supabase
     .from("journal_entries")
     .select("id, owner_id, title, entry_date, place_name, tags, is_shared, body_text, owner:owner_id (name), links (to_observation_id)")
@@ -81,6 +91,8 @@ export async function listEntries(f: JournalFilter): Promise<EntrySummary[]> {
     .limit(200);
 
   query = f.scope === "mine" ? query.eq("owner_id", f.memberId) : query.eq("is_shared", true).neq("owner_id", f.memberId);
+
+  if (onlyIds) query = query.in("id", onlyIds);
 
   const term = searchTerm(f.q ?? "");
   if (term) query = query.or(`title.ilike.%${term}%,body_text.ilike.%${term}%`);

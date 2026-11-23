@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { getCurrentMember } from "@/lib/auth";
-import { listEntries, myTags, type EntrySummary } from "@/lib/journal";
+import { listEntries, myTags, toDaySighting, type EntrySummary } from "@/lib/journal";
+import { getObservation, listObservations, STATUS_LABEL, type Observation } from "@/lib/observations";
 import { Card, PageHeader } from "@/components/ui";
+import { SightingPicker, type PickerSighting } from "./sighting-picker";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
@@ -17,6 +19,11 @@ function dayParts(date: string) {
   };
 }
 
+function toPicker(o: Observation, me: string): PickerSighting {
+  const d = toDaySighting(o, me);
+  return { id: d.id, title: d.title, when: d.when, place: d.place, thumb: d.thumb, status: STATUS_LABEL[o.id_status] };
+}
+
 export default async function JournalPage({ searchParams }: PageProps<"/journal">) {
   const member = await getCurrentMember();
   const sp = await searchParams;
@@ -24,11 +31,22 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
   const q = one(sp.q).slice(0, 100);
   const tag = one(sp.tag).slice(0, 40);
   const month = one(sp.month);
-  const [entries, tags] = await Promise.all([
-    listEntries({ scope, memberId: member.id, q, tag, month }),
-    scope === "mine" ? myTags(member.id) : Promise.resolve([]),
-  ]);
+  const obsId = one(sp.obs);
   const filtered = Boolean(q || tag || month);
+  // The Journal starts empty: pick a sighting to see its entries, or press "Show all".
+  const mode: "sighting" | "all" | "pick" = obsId ? "sighting" : one(sp.all) === "1" || filtered ? "all" : "pick";
+
+  const [entries, tags, sightingList] = await Promise.all([
+    mode === "pick" ? Promise.resolve([]) : listEntries({ scope, memberId: member.id, q, tag, month, observationId: mode === "sighting" ? obsId : undefined }),
+    scope === "mine" && mode === "all" ? myTags(member.id) : Promise.resolve([]),
+    listObservations(scope === "mine" ? { observerId: member.id } : {}, 100),
+  ]);
+  const sightings = sightingList.map((o) => toPicker(o, member.id));
+  let selected = mode === "sighting" ? (sightings.find((s) => s.id === obsId) ?? null) : null;
+  if (mode === "sighting" && !selected) {
+    const o = await getObservation(obsId);
+    selected = o ? toPicker(o, member.id) : null;
+  }
 
   const groups: { month: string; entries: EntrySummary[] }[] = [];
   for (const e of entries) {
@@ -38,7 +56,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
   }
 
   const href = (patch: Record<string, string>) => {
-    const p = new URLSearchParams({ ...(scope === "team" ? { show: "team" } : {}), ...(q ? { q } : {}), ...(tag ? { tag } : {}), ...(month ? { month } : {}), ...patch });
+    const p = new URLSearchParams({ ...(scope === "team" ? { show: "team" } : {}), all: "1", ...(q ? { q } : {}), ...(tag ? { tag } : {}), ...(month ? { month } : {}), ...patch });
     for (const [k, v] of [...p]) if (!v) p.delete(k);
     const s = p.toString();
     return s ? `/journal?${s}` : "/journal";
@@ -65,6 +83,20 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
         </span>
       </nav>
 
+      <div className="mb-4 flex flex-wrap items-start gap-3">
+        <div className="min-w-0 flex-1 basis-72">
+          <SightingPicker sightings={sightings} selected={selected} team={scope === "team"} />
+        </div>
+        <Link
+          href={scope === "team" ? "/journal?show=team&all=1" : "/journal?all=1"}
+          className={`inline-flex h-11 shrink-0 items-center rounded-full border px-5 text-sm font-medium ${
+            mode === "all" ? "border-forest-600 bg-forest-50 text-forest-800" : "border-line bg-paper hover:bg-wash"
+          }`}
+        >
+          Show all entries
+        </Link>
+      </div>
+
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <div className="flex gap-2 text-sm">
           {[
@@ -81,7 +113,9 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
           ))}
         </div>
 
+        {mode === "all" && (
         <form action="/journal" className="ml-auto flex flex-wrap items-center gap-2">
+          <input type="hidden" name="all" value="1" />
           {scope === "team" && <input type="hidden" name="show" value="team" />}
           {tag && <input type="hidden" name="tag" value={tag} />}
           <input
@@ -102,6 +136,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
             Search
           </button>
         </form>
+        )}
       </div>
 
       {tags.length > 0 && (
@@ -124,13 +159,29 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
           {tag ? ` tagged #${tag}` : ""}
           {q ? ` containing “${q}”` : ""}
           {month ? ` in ${monthLabel(`${month}-15`)}` : ""}.{" "}
-          <Link href={scope === "team" ? "/journal?show=team" : "/journal"} className="text-forest-700 hover:underline">
+          <Link href={scope === "team" ? "/journal?show=team&all=1" : "/journal?all=1"} className="text-forest-700 hover:underline">
             Clear
           </Link>
         </p>
       )}
 
-      {entries.length === 0 ? (
+      {mode === "pick" ? (
+        <Card className="py-16 text-center">
+          <p className="font-medium">Choose a sighting to see its journal entries.</p>
+          <p className="mt-2 text-sm text-muted">
+            Click the box above to pick one by its photo, or press <span className="font-medium">Show all entries</span>.
+          </p>
+        </Card>
+      ) : mode === "sighting" && entries.length === 0 ? (
+        <Card className="py-16 text-center">
+          <p className="font-medium">No journal entries for this sighting yet.</p>
+          {selected && (
+            <Link href={`/journal/new?obs=${selected.id}`} className="mt-6 inline-block text-sm font-medium text-forest-700 hover:underline">
+              Write one →
+            </Link>
+          )}
+        </Card>
+      ) : entries.length === 0 ? (
         <Card className="py-16 text-center">
           {filtered ? (
             <p className="font-medium">No entries match.</p>

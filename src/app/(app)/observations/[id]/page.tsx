@@ -111,7 +111,14 @@ export default async function ObservationPage({ params, searchParams }: PageProp
         )}
 
         <section className="rounded-xl border border-line bg-paper p-4 text-sm">
-          <h2 className="font-medium">Journal entries</h2>
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="font-medium">Journal entries</h2>
+            {entries.length > 0 && (
+              <Link href={`/journal?obs=${obs.id}`} className="text-xs text-forest-700 hover:underline">
+                See in Journal
+              </Link>
+            )}
+          </div>
           {links === "failed" && (
             <p className="mt-2 rounded-lg border border-red-300 bg-red-50 p-2 text-red-800">
               That entry could not be linked. Please try again in a moment.
