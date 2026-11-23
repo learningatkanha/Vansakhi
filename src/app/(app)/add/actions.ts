@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { hindiNameFor } from "@/lib/gbif";
+import { sightingTitle } from "@/lib/observations";
 
 type MediaInput = {
   key: string;
@@ -52,6 +53,32 @@ async function speciesRowId(supabase: Supabase, s: NonNullable<ObservationInput[
   return data?.id ?? null;
 }
 
+/** The sighting's display name as it is in the database right now. */
+async function titleNow(supabase: Supabase, observationId: string) {
+  const { data } = await supabase
+    .from("observations")
+    .select("species_guess, species:species_id (common_name, scientific_name)")
+    .eq("id", observationId)
+    .maybeSingle();
+  const row = data as unknown as { species_guess: string | null; species: { common_name: string | null; scientific_name: string } | null } | null;
+  return row ? sightingTitle(row.species, row.species_guess) : null;
+}
+
+/**
+ * After a sighting is renamed, your journal entries about it that still carry its old name as their
+ * title (as filled in when you started writing) take the new name. Titles you changed are left alone.
+ */
+async function retitleEntries(supabase: Supabase, memberId: string, observationId: string, oldTitle: string | null, newTitle: string | null) {
+  if (!oldTitle || !newTitle || oldTitle === newTitle) return;
+  const { data: links } = await supabase.from("links").select("from_entry_id").eq("to_observation_id", observationId);
+  const ids = (links ?? []).flatMap((l) => (l.from_entry_id ? [l.from_entry_id] : []));
+  if (ids.length === 0) return;
+  const { error } = await supabase.from("journal_entries").update({ title: newTitle }).in("id", ids).eq("owner_id", memberId).eq("title", oldTitle);
+  if (error) console.error("retitle journal entries:", error.message);
+  revalidatePath("/journal");
+  for (const id of ids) revalidatePath(`/journal/${id}`);
+}
+
 export type NameState = { error?: string };
 
 /** From the Explore page: put the chosen species on one of your own sightings. */
@@ -75,6 +102,7 @@ export async function nameSighting(_prev: NameState, formData: FormData): Promis
   if (!speciesId) return { error: "Could not save the species. Please try again." };
 
   if (obs.species_id !== speciesId) {
+    const oldTitle = await titleNow(supabase, observationId);
     const { error } = await supabase
       .from("observations")
       .update({ species_id: speciesId, species_guess: null, id_status: "suggested" })
@@ -84,6 +112,7 @@ export async function nameSighting(_prev: NameState, formData: FormData): Promis
       return { error: "Could not save the species. Please try again." };
     }
     await supabase.from("identifications").insert({ observation_id: observationId, member_id: member.id, species_id: speciesId, source: "manual" });
+    await retitleEntries(supabase, member.id, observationId, oldTitle, await titleNow(supabase, observationId));
   }
 
   revalidatePath("/");
@@ -124,6 +153,7 @@ export async function saveObservation(_prev: SaveState, formData: FormData): Pro
     if (input.media.some((m) => m.mediaId && !existing!.mediaIds.includes(m.mediaId)))
       return { error: "One of the photos doesn't belong to this sighting." };
   }
+  const oldTitle = input.id ? await titleNow(supabase, input.id) : null;
 
   const speciesId = input.species ? await speciesRowId(supabase, input.species) : null;
   const speciesChanged = !existing || existing.species_id !== speciesId;
@@ -157,6 +187,7 @@ export async function saveObservation(_prev: SaveState, formData: FormData): Pro
   if (speciesId && speciesChanged) {
     await supabase.from("identifications").insert({ observation_id: obs.id, member_id: member.id, species_id: speciesId, source: "manual" });
   }
+  if (input.id) await retitleEntries(supabase, member.id, obs.id, oldTitle, await titleNow(supabase, obs.id));
 
   // New uploads get a media row each; photos already on the sighting keep theirs.
   const mediaIdByKey = new Map(input.media.filter((m) => m.mediaId).map((m) => [m.key, m.mediaId!]));

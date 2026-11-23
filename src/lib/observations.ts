@@ -33,10 +33,14 @@ export type Observation = Omit<Row, "observation_media"> & {
   media: { id: string; file_key: string; media_type: string; url: string | null }[];
 };
 
+/** A sighting's display name: the species, else the guess with a "?", else "Unknown species". */
+export function sightingTitle(species: { common_name: string | null; scientific_name: string } | null, guess: string | null) {
+  return species?.common_name ?? species?.scientific_name ?? (guess ? `${guess.replace(/\?+$/, "")}?` : "Unknown species");
+}
+
 async function withMedia(row: Row): Promise<Observation> {
   const ordered = [...row.observation_media].sort((a, b) => a.position - b.position).flatMap((om) => (om.media ? [om.media] : []));
-  const title = row.species?.common_name ?? row.species?.scientific_name ?? (row.species_guess ? `${row.species_guess.replace(/\?+$/, "")}?` : "Unknown species");
-  return { ...row, title, media: await viewUrls(ordered) };
+  return { ...row, title: sightingTitle(row.species, row.species_guess), media: await viewUrls(ordered) };
 }
 
 export async function listObservations(
@@ -78,7 +82,7 @@ export async function myRecentSightings(memberId: string, limit = 40) {
     observedAt: r.observed_at,
     place: r.place_name,
     named: !!r.species,
-    title: r.species?.common_name ?? r.species?.scientific_name ?? (r.species_guess ? `${r.species_guess.replace(/\?+$/, "")}?` : "Unknown species"),
+    title: sightingTitle(r.species, r.species_guess),
   }));
   return [...rows.filter((r) => !r.named), ...rows.filter((r) => r.named)];
 }
