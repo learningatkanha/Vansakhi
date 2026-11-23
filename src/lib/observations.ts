@@ -62,4 +62,27 @@ export async function getObservation(id: string) {
   return data ? withMedia(data as unknown as Row) : null;
 }
 
+/** Your own recent sightings, light (no photos), for pick-lists. Unnamed ones first. */
+export async function myRecentSightings(memberId: string, limit = 40) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("observations")
+    .select("id, observed_at, place_name, species_guess, species:species_id (common_name, scientific_name)")
+    .eq("observer_id", memberId)
+    .order("observed_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  type R = { id: string; observed_at: string; place_name: string | null; species_guess: string | null; species: { common_name: string | null; scientific_name: string } | null };
+  const rows = (data as unknown as R[]).map((r) => ({
+    id: r.id,
+    observedAt: r.observed_at,
+    place: r.place_name,
+    named: !!r.species,
+    title: r.species?.common_name ?? r.species?.scientific_name ?? (r.species_guess ? `${r.species_guess.replace(/\?+$/, "")}?` : "Unknown species"),
+  }));
+  return [...rows.filter((r) => !r.named), ...rows.filter((r) => r.named)];
+}
+
+export type RecentSighting = Awaited<ReturnType<typeof myRecentSightings>>[number];
+
 export const STATUS_LABEL = { needs_id: "Needs ID", suggested: "Needs ID", verified: "Verified" } as const;

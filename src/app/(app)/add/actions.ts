@@ -35,6 +35,57 @@ const okCoord = (lat?: number, lng?: number) =>
   typeof lat === "number" && typeof lng === "number" && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
 const clip = (s: unknown, n = 2000) => String(s ?? "").trim().slice(0, n) || null;
 
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+/** The species' row id, adding it to the species table first if it's new. */
+async function speciesRowId(supabase: Supabase, s: NonNullable<ObservationInput["species"]>) {
+  await supabase.from("species").upsert(
+    { gbif_key: s.gbifKey, scientific_name: s.scientificName, common_name: s.commonName, hindi_name: s.hindiName, group_name: s.group },
+    { onConflict: "gbif_key", ignoreDuplicates: true },
+  );
+  const { data } = await supabase.from("species").select("id").eq("gbif_key", s.gbifKey).single();
+  return data?.id ?? null;
+}
+
+export type NameState = { error?: string };
+
+/** From the Explore page: put the chosen species on one of your own sightings. */
+export async function nameSighting(_prev: NameState, formData: FormData): Promise<NameState> {
+  const member = await getCurrentMember();
+  const observationId = String(formData.get("observationId") ?? "");
+  let species: NonNullable<ObservationInput["species"]>;
+  try {
+    species = JSON.parse(String(formData.get("species")));
+    if (typeof species?.gbifKey !== "number" || !species.scientificName) throw new Error();
+  } catch {
+    return { error: "Please choose a species first." };
+  }
+  if (!/^[0-9a-f-]{36}$/i.test(observationId)) return { error: "Please choose one of your sightings." };
+
+  const supabase = await createClient();
+  const { data: obs } = await supabase.from("observations").select("observer_id, species_id").eq("id", observationId).maybeSingle();
+  if (!obs || obs.observer_id !== member.id) return { error: "You can only name your own sightings." };
+
+  const speciesId = await speciesRowId(supabase, species);
+  if (!speciesId) return { error: "Could not save the species. Please try again." };
+
+  if (obs.species_id !== speciesId) {
+    const { error } = await supabase
+      .from("observations")
+      .update({ species_id: speciesId, species_guess: null, id_status: "suggested" })
+      .eq("id", observationId);
+    if (error) {
+      console.error("name sighting:", error.message);
+      return { error: "Could not save the species. Please try again." };
+    }
+    await supabase.from("identifications").insert({ observation_id: observationId, member_id: member.id, species_id: speciesId, source: "manual" });
+  }
+
+  revalidatePath("/");
+  revalidatePath(`/observations/${observationId}`);
+  redirect(`/observations/${observationId}`);
+}
+
 export async function saveObservation(_prev: SaveState, formData: FormData): Promise<SaveState> {
   const member = await getCurrentMember();
   let input: ObservationInput;
@@ -69,16 +120,7 @@ export async function saveObservation(_prev: SaveState, formData: FormData): Pro
       return { error: "One of the photos doesn't belong to this sighting." };
   }
 
-  let speciesId: number | null = null;
-  if (input.species) {
-    const s = input.species;
-    await supabase.from("species").upsert(
-      { gbif_key: s.gbifKey, scientific_name: s.scientificName, common_name: s.commonName, hindi_name: s.hindiName, group_name: s.group },
-      { onConflict: "gbif_key", ignoreDuplicates: true },
-    );
-    const { data } = await supabase.from("species").select("id").eq("gbif_key", s.gbifKey).single();
-    speciesId = data?.id ?? null;
-  }
+  const speciesId = input.species ? await speciesRowId(supabase, input.species) : null;
   const speciesChanged = !existing || existing.species_id !== speciesId;
 
   const count = input.count && input.count > 0 ? Math.min(Math.round(input.count), 100000) : null;

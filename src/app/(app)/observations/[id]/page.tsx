@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCurrentMember } from "@/lib/auth";
 import { getObservation } from "@/lib/observations";
 import { formatWhen } from "@/lib/media";
+import { monthOf, timeOfDayOf } from "@/lib/when";
 import { StatusBadge } from "@/components/observation-card";
 import { entriesForSighting, myRecentEntries } from "@/lib/journal";
 import { linkEntry, unlinkEntry } from "../../journal/actions";
@@ -40,6 +41,8 @@ export default async function ObservationPage({ params, searchParams }: PageProp
   const writeHref = `/journal/new?obs=${obs.id}`;
 
   const details = [
+    ["Month", monthOf(obs.observed_at)],
+    ["Time of day", timeOfDayOf(obs.observed_at)],
     ["Life stage", obs.life_stage],
     ["Sex", obs.sex],
     ["Behaviour", obs.behaviour],

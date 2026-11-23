@@ -8,6 +8,7 @@ import { SpeciesSearch } from "@/components/species-search";
 import { MediaUploader, type UploadItem } from "@/components/media-uploader";
 import type { SpeciesMatch } from "@/lib/gbif";
 import type { PlaceMatch } from "@/lib/places";
+import { monthOf, timeOfDayOf, WEATHER_CHOICES } from "@/lib/when";
 import { saveObservation, type ObservationInput, type SaveState } from "./actions";
 
 /** "2026-11-14T07:42" in the browser's own time zone, for a datetime-local input. */
@@ -37,10 +38,10 @@ export type ObservationInitial = {
   media: UploadItem[];
 };
 
-export function AddForm({ initial }: { initial?: ObservationInitial }) {
+export function AddForm({ initial, startSpecies }: { initial?: ObservationInitial; startSpecies?: SpeciesMatch | null }) {
   const [state, action, pending] = useActionState<SaveState, FormData>(saveObservation, {});
   const [media, setMedia] = useState<UploadItem[]>(initial?.media ?? []);
-  const [species, setSpecies] = useState<SpeciesMatch | null>(initial?.species ?? null);
+  const [species, setSpecies] = useState<SpeciesMatch | null>(initial?.species ?? startSpecies ?? null);
   const [speciesGuess, setSpeciesGuess] = useState(initial?.speciesGuess ?? "");
   const [place, setPlace] = useState<PlaceMatch | null>(initial?.place ?? null);
   const [placeNote, setPlaceNote] = useState<string | null>(null);
@@ -76,11 +77,14 @@ export function AddForm({ initial }: { initial?: ObservationInitial }) {
   const uploading = media.some((m) => m.status === "uploading");
   const failed = media.some((m) => m.status === "error");
 
+  const whenDate = when ? new Date(when) : null;
+  const whenIso = whenDate && !isNaN(+whenDate) ? whenDate.toISOString() : "";
+
   const payload: ObservationInput = {
     id: initial?.id,
     species,
     speciesGuess,
-    observedAt: when ? new Date(when).toISOString() : "",
+    observedAt: whenIso,
     place,
     count: count ? Number(count) : null,
     notes,
@@ -156,6 +160,19 @@ export function AddForm({ initial }: { initial?: ObservationInitial }) {
           </button>
           {showDetails && (
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {whenIso && (
+                <div className="sm:col-span-2 grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="mb-1.5 text-sm font-medium">Month</p>
+                    <p className="rounded-lg bg-wash px-3 py-2 text-sm">{monthOf(whenIso)}</p>
+                  </div>
+                  <div>
+                    <p className="mb-1.5 text-sm font-medium">Time of day</p>
+                    <p className="rounded-lg bg-wash px-3 py-2 text-sm">{timeOfDayOf(whenIso)}</p>
+                  </div>
+                  <p className="col-span-2 -mt-2 text-xs text-muted">Filled in from the date and time above.</p>
+                </div>
+              )}
               {DETAIL_FIELDS.map((f) => (
                 <div key={f.name}>
                   <Label htmlFor={f.name}>{f.label}</Label>
@@ -164,9 +181,15 @@ export function AddForm({ initial }: { initial?: ObservationInitial }) {
                     value={details[f.name] ?? ""}
                     onChange={(e) => setDetails({ ...details, [f.name]: e.target.value })}
                     placeholder={f.placeholder}
+                    list={f.name === "weather" ? "weather-choices" : undefined}
                   />
                 </div>
               ))}
+              <datalist id="weather-choices">
+                {WEATHER_CHOICES.map((w) => (
+                  <option key={w} value={w} />
+                ))}
+              </datalist>
             </div>
           )}
         </div>
