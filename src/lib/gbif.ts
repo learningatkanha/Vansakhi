@@ -41,7 +41,42 @@ export function toSpeciesMatch(r: GbifResult): SpeciesMatch | null {
   };
 }
 
-export async function searchSpecies(query: string, limit = 10): Promise<SpeciesMatch[]> {
+const DAY = 24 * 60 * 60;
+
+async function gbifJson<T>(url: string | URL): Promise<T | null> {
+  try {
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(5000), next: { revalidate: DAY } });
+    return res.ok ? ((await res.json()) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** GBIF's number for a scientific name (the accepted one, if the name is an older synonym). */
+export async function gbifKeyFor(scientificName: string): Promise<{ key: number; group: string | null } | null> {
+  const url = new URL("https://api.gbif.org/v1/species/match");
+  url.searchParams.set("name", scientificName);
+  url.searchParams.set("rank", "SPECIES");
+  url.searchParams.set("strict", "true");
+  const m = await gbifJson<{ matchType?: string; usageKey?: number; acceptedUsageKey?: number; class?: string; kingdom?: string }>(url);
+  const key = m?.acceptedUsageKey ?? m?.usageKey;
+  if (!m || m.matchType === "NONE" || !key) return null;
+  return { key, group: m.class ?? m.kingdom ?? null };
+}
+
+/** A Hindi name for the species from GBIF, preferring one written in Devanagari. Exported for tests. */
+export function pickHindi(names: GbifVernacular[]): string | null {
+  const hindi = names.filter((n) => n.vernacularName && ["hin", "hi"].includes((n.language ?? "").toLowerCase())).map((n) => n.vernacularName!);
+  return hindi.find((n) => /[ऀ-ॿ]/.test(n)) ?? hindi[0] ?? null;
+}
+
+export async function hindiNameFor(gbifKey: number): Promise<string | null> {
+  const body = await gbifJson<{ results?: GbifVernacular[] }>(`https://api.gbif.org/v1/species/${gbifKey}/vernacularNames?limit=200`);
+  return pickHindi(body?.results ?? []);
+}
+
+/** The plain GBIF text search (used only if iNaturalist can't be reached). */
+export async function searchGbif(query: string, limit = 10): Promise<SpeciesMatch[]> {
   const q = query.trim();
   if (q.length < 2) return [];
 

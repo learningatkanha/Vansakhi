@@ -1,6 +1,32 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toSpeciesMatch } from "../src/lib/gbif.ts";
+import { pickHindi, toSpeciesMatch } from "../src/lib/gbif.ts";
+import { mergeTaxa } from "../src/lib/inat-taxa.ts";
+
+const t = (id: number, name: string, common: string | null, rank = "species") => ({ id, name, rank, preferred_common_name: common });
+
+test("an exact name match comes first, then India, then worldwide", () => {
+  const india = [t(1, "Danaus chrysippus", "Plain Tiger Butterfly"), t(2, "Tirumala limniace", "Blue Tiger")];
+  const world = [t(3, "Panthera tigris", "Tiger"), t(4, "Esox masquinongy", "Muskellunge"), t(1, "Danaus chrysippus", "Plain Tiger Butterfly")];
+  assert.deepEqual(mergeTaxa("Tiger ", india, world).map((x) => x.id), [3, 1, 2, 4]);
+});
+
+test("species recorded in India outrank worldwide look-alikes; non-species are dropped", () => {
+  const india = [t(10, "Semnopithecus entellus", "Bengal Sacred Langur")];
+  const world = [t(11, "Presbytis", "Surilis", "genus"), t(12, "Trachypithecus pileatus", "Capped Lutung"), t(10, "Semnopithecus entellus", "Bengal Sacred Langur")];
+  assert.deepEqual(mergeTaxa("langur", india, world).map((x) => x.id), [10, 12]);
+});
+
+test("pickHindi prefers a name written in Devanagari", () => {
+  const names = [
+    { vernacularName: "Tiger", language: "eng" },
+    { vernacularName: "Baagh", language: "hin" },
+    { vernacularName: "बाघ", language: "hin" },
+  ];
+  assert.equal(pickHindi(names), "बाघ");
+  assert.equal(pickHindi([{ vernacularName: "Baagh", language: "hin" }]), "Baagh");
+  assert.equal(pickHindi([{ vernacularName: "Tiger", language: "eng" }]), null);
+});
 import { toPlaceMatches } from "../src/lib/places.ts";
 
 test("GBIF result becomes a species match with English and Hindi names", () => {

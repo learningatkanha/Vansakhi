@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { searchSpecies } from "@/lib/gbif";
+import { searchSpecies } from "@/lib/species-search";
 
 // GET /api/species?q=barasingha  (signed-in members only; the proxy blocks everyone else)
 export async function GET(request: NextRequest) {

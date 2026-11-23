@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getCurrentMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { hindiNameFor } from "@/lib/gbif";
 
 type MediaInput = {
   key: string;
@@ -39,8 +40,12 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 /** The species' row id, adding it to the species table first if it's new. */
 async function speciesRowId(supabase: Supabase, s: NonNullable<ObservationInput["species"]>) {
+  const { data: known } = await supabase.from("species").select("id").eq("gbif_key", s.gbifKey).maybeSingle();
+  if (known) return known.id;
+  // New to the app: look up a Hindi name once, since the search doesn't bring one.
+  const hindiName = s.hindiName ?? (await hindiNameFor(s.gbifKey));
   await supabase.from("species").upsert(
-    { gbif_key: s.gbifKey, scientific_name: s.scientificName, common_name: s.commonName, hindi_name: s.hindiName, group_name: s.group },
+    { gbif_key: s.gbifKey, scientific_name: s.scientificName, common_name: s.commonName, hindi_name: hindiName, group_name: s.group },
     { onConflict: "gbif_key", ignoreDuplicates: true },
   );
   const { data } = await supabase.from("species").select("id").eq("gbif_key", s.gbifKey).single();
