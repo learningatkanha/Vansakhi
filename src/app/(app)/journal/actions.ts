@@ -92,13 +92,19 @@ export async function saveEntry(_prev: SaveState, formData: FormData): Promise<S
     ...ownMedia.map((id) => ({ from_entry_id: entryId, to_media_id: id })),
     ...observationIds.map((id) => ({ from_entry_id: entryId, to_observation_id: id })),
   ];
+  let linkFailed = false;
   if (links.length) {
     const { error } = await supabase.from("links").insert(links);
-    if (error) console.error("save journal links:", error.message);
+    if (error) {
+      console.error("save journal links:", error.message);
+      linkFailed = true;
+    }
   }
 
   revalidatePath("/journal");
-  redirect(`/journal/${entryId}`);
+  for (const id of observationIds) revalidatePath(`/observations/${id}`);
+  // The entry is saved either way; say so plainly if its links to sightings or photos were refused.
+  redirect(linkFailed ? `/journal/${entryId}?links=failed` : `/journal/${entryId}`);
 }
 
 export async function deleteEntry(formData: FormData) {
@@ -170,10 +176,14 @@ export async function linkEntry(formData: FormData) {
     .limit(1);
   if (!existing?.length) {
     const { error } = await supabase.from("links").insert({ from_entry_id: entryId, to_observation_id: observationId });
-    if (error) console.error("link entry:", error.message);
+    if (error) {
+      console.error("link entry:", error.message);
+      redirect(`/observations/${observationId}?links=failed`);
+    }
   }
   revalidatePath(`/observations/${observationId}`);
   revalidatePath(`/journal/${entryId}`);
+  revalidatePath("/journal");
 }
 
 /** Removes the link between one of your entries and a sighting. Neither is deleted. */

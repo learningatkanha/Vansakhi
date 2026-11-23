@@ -33,7 +33,7 @@ const dateLabel = (d: string) =>
 
 export default async function ObservationPage({ params, searchParams }: PageProps<"/observations/[id]">) {
   const { id } = await params;
-  const { saved } = await searchParams;
+  const { saved, links } = await searchParams;
   const [member, obs] = await Promise.all([getCurrentMember(), getObservation(id)]);
   if (!obs) notFound();
   const [entries, myEntries] = await Promise.all([entriesForSighting(obs.id), myRecentEntries(member.id)]);
@@ -112,6 +112,11 @@ export default async function ObservationPage({ params, searchParams }: PageProp
 
         <section className="rounded-xl border border-line bg-paper p-4 text-sm">
           <h2 className="font-medium">Journal entries</h2>
+          {links === "failed" && (
+            <p className="mt-2 rounded-lg border border-red-300 bg-red-50 p-2 text-red-800">
+              That entry could not be linked. Please try again in a moment.
+            </p>
+          )}
           {entries.length === 0 && <p className="mt-1 text-muted">No journal entries about this sighting yet.</p>}
           {entries.length > 0 && (
             <ul className="mt-2 divide-y divide-line">

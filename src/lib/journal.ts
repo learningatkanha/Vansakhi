@@ -27,11 +27,14 @@ async function sightingNames(observationIds: string[]): Promise<Map<string, Sigh
 }
 
 /** Applies liveTitle to entries, given each entry's linked sighting ids. */
-async function withLiveTitles<T extends { id: string; title: string }>(entries: T[], linksOf: (e: T) => string[]): Promise<T[]> {
+async function withLiveTitles<T extends { id: string; title: string }>(
+  entries: T[],
+  linksOf: (e: T) => string[],
+): Promise<(T & { sightingNames: string[] })[]> {
   const names = await sightingNames(entries.flatMap(linksOf));
   return entries.map((e) => {
     const linked = linksOf(e).flatMap((id) => (names.has(id) ? [names.get(id)!] : []));
-    return { ...e, title: liveTitle(e.title, linked) };
+    return { ...e, title: liveTitle(e.title, linked), sightingNames: linked.map((n) => n.current) };
   });
 }
 
@@ -45,6 +48,7 @@ export type EntrySummary = {
   is_shared: boolean;
   preview: string;
   owner: { name: string | null } | null;
+  sightings: string[]; // names of the linked sightings, as they are now
 };
 
 export type Entry = {
@@ -89,14 +93,25 @@ export async function listEntries(f: JournalFilter): Promise<EntrySummary[]> {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  type R = Omit<EntrySummary, "preview"> & { body_text: string | null; links: { to_observation_id: string | null }[] };
+  type R = Omit<EntrySummary, "preview" | "sightings"> & { body_text: string | null; links: { to_observation_id: string | null }[] };
   const rows = (data as unknown as R[]).map(({ body_text, links, ...e }) => ({
     ...e,
     preview: (body_text ?? "").replace(/\s+/g, " ").slice(0, 180),
     obsIds: (links ?? []).flatMap((l) => (l.to_observation_id ? [l.to_observation_id] : [])),
   }));
   const live = await withLiveTitles(rows, (e) => e.obsIds);
-  return live.map((e) => ({ id: e.id, owner_id: e.owner_id, title: e.title, entry_date: e.entry_date, place_name: e.place_name, tags: e.tags, is_shared: e.is_shared, preview: e.preview, owner: e.owner }));
+  return live.map((e) => ({
+    id: e.id,
+    owner_id: e.owner_id,
+    title: e.title,
+    entry_date: e.entry_date,
+    place_name: e.place_name,
+    tags: e.tags,
+    is_shared: e.is_shared,
+    preview: e.preview,
+    owner: e.owner,
+    sightings: e.sightingNames,
+  }));
 }
 
 /** Your tags, most used first, for the filter chips. */

@@ -92,6 +92,8 @@ and **Run**, before the new version of the app goes live. Run each file once, in
 
 - `0005_journal_search.sql` (phase 3, journal): search text, tag index, entry coordinates, and a tighter rule
   for which photos an entry may link to.
+- `0006_fix_links_rule.sql` (fix): lets journal entries link to sightings and photos again (the 0005 rule
+  looped with the photos rule, so the database refused every link).
 
 ## Later phases
 

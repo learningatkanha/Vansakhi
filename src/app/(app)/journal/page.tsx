@@ -167,6 +167,11 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-semibold">{e.title || "Untitled entry"}</p>
                           {e.preview && <p className="mt-0.5 line-clamp-2 text-sm text-muted">{e.preview}</p>}
+                          {e.sightings.length > 0 && (
+                            <p className="mt-1 truncate text-xs text-forest-700">
+                              Sighting{e.sightings.length > 1 ? "s" : ""}: {e.sightings.join(", ")}
+                            </p>
+                          )}
                           <p className="mt-1 flex flex-wrap gap-x-2 text-xs text-muted">
                             {scope === "team" && <span>by {e.owner?.name ?? "a teammate"}</span>}
                             {e.place_name && <span>{e.place_name.split(",")[0]}</span>}

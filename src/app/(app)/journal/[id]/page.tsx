@@ -8,8 +8,16 @@ import { ObservationCard } from "@/components/observation-card";
 import { JournalBody } from "@/components/journal-body";
 import { DeleteEntryButton } from "./delete-button";
 
-export default async function EntryPage({ params }: PageProps<"/journal/[id]">) {
+const LINK_FAILED = (
+  <p className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+    The journal entry and the sighting could not be linked. Nothing else was lost. Please edit the entry and save it
+    again, and tell the admin if it keeps happening.
+  </p>
+);
+
+export default async function EntryPage({ params, searchParams }: PageProps<"/journal/[id]">) {
   const { id } = await params;
+  const { links } = await searchParams;
   const [member, entry] = await Promise.all([getCurrentMember(), getEntry(id)]);
   if (!entry) notFound();
   const mine = entry.owner_id === member.id;
@@ -17,6 +25,7 @@ export default async function EntryPage({ params }: PageProps<"/journal/[id]">) 
 
   return (
     <article className="mx-auto max-w-3xl">
+      {links === "failed" && LINK_FAILED}
       <Link href={mine ? "/journal" : "/journal?show=team"} className="text-sm text-forest-700 hover:underline">
         ← Journal
       </Link>
