@@ -46,7 +46,7 @@ export async function listObservations(
   if (filter.ids && filter.ids.length === 0) return [];
   const supabase = await createClient();
   let query = supabase.from("observations").select(FIELDS).order("observed_at", { ascending: false }).limit(limit);
-  if (filter.needsId) query = query.neq("id_status", "verified");
+  if (filter.needsId) query = query.eq("id_status", "needs_id");
   if (filter.observerId) query = query.eq("observer_id", filter.observerId);
   if (filter.between) query = query.gte("observed_at", filter.between.from).lt("observed_at", filter.between.to);
   if (filter.ids) query = query.in("id", filter.ids);
@@ -85,4 +85,5 @@ export async function myRecentSightings(memberId: string, limit = 40) {
 
 export type RecentSighting = Awaited<ReturnType<typeof myRecentSightings>>[number];
 
-export const STATUS_LABEL = { needs_id: "Needs ID", suggested: "Needs ID", verified: "Verified" } as const;
+// "suggested" = named by the observer, not yet confirmed by a teammate (that arrives in phase 5).
+export const STATUS_LABEL = { needs_id: "Needs ID", suggested: "Named", verified: "Verified" } as const;

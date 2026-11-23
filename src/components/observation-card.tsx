@@ -4,12 +4,15 @@ import { STATUS_LABEL } from "@/lib/observations";
 import { formatWhen } from "@/lib/media";
 
 export function StatusBadge({ status }: { status: Observation["id_status"] }) {
-  const verified = status === "verified";
+  const look = {
+    verified: "border-forest-600 bg-forest-50 text-forest-800",
+    suggested: "border-line bg-paper text-ink",
+    needs_id: "border-amber-500 bg-amber-50 text-amber-900",
+  }[status];
   return (
     <span
-      className={`inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
-        verified ? "border-forest-600 bg-forest-50 text-forest-800" : "border-amber-500 bg-amber-50 text-amber-900"
-      }`}
+      title={status === "suggested" ? "Named by the observer; not yet confirmed by the team" : undefined}
+      className={`inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${look}`}
     >
       {STATUS_LABEL[status]}
     </span>
