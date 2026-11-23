@@ -1,8 +1,39 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { viewUrls } from "@/lib/media";
-import type { Observation } from "@/lib/observations";
-import { cleanDoc, EMPTY_DOC, mediaIdsIn, searchTerm, withMediaUrls, type DocNode } from "@/lib/journal-doc";
+import { sightingTitle, type Observation } from "@/lib/observations";
+import { cleanDoc, EMPTY_DOC, liveTitle, mediaIdsIn, searchTerm, withMediaUrls, type DocNode, type SightingNames } from "@/lib/journal-doc";
+
+type Sp = { common_name: string | null; scientific_name: string } | null;
+
+/** Each sighting's current name and the names it had before, so entry titles can follow renames. */
+async function sightingNames(observationIds: string[]): Promise<Map<string, SightingNames>> {
+  const ids = [...new Set(observationIds)];
+  const names = new Map<string, SightingNames>();
+  if (ids.length === 0) return names;
+  const supabase = await createClient();
+  const [{ data: obs }, { data: ids_ }] = await Promise.all([
+    supabase.from("observations").select("id, species_guess, species:species_id (common_name, scientific_name)").in("id", ids),
+    supabase.from("identifications").select("observation_id, species:species_id (common_name, scientific_name)").in("observation_id", ids),
+  ]);
+  for (const o of (obs ?? []) as unknown as { id: string; species_guess: string | null; species: Sp }[]) {
+    names.set(o.id, { current: sightingTitle(o.species, o.species_guess), past: o.species_guess ? [o.species_guess] : [] });
+  }
+  for (const i of (ids_ ?? []) as unknown as { observation_id: string; species: Sp }[]) {
+    const n = names.get(i.observation_id);
+    if (n && i.species) n.past.push(...[i.species.common_name, i.species.scientific_name].filter((x): x is string => !!x));
+  }
+  return names;
+}
+
+/** Applies liveTitle to entries, given each entry's linked sighting ids. */
+async function withLiveTitles<T extends { id: string; title: string }>(entries: T[], linksOf: (e: T) => string[]): Promise<T[]> {
+  const names = await sightingNames(entries.flatMap(linksOf));
+  return entries.map((e) => {
+    const linked = linksOf(e).flatMap((id) => (names.has(id) ? [names.get(id)!] : []));
+    return { ...e, title: liveTitle(e.title, linked) };
+  });
+}
 
 export type EntrySummary = {
   id: string;
@@ -40,7 +71,7 @@ export async function listEntries(f: JournalFilter): Promise<EntrySummary[]> {
   const supabase = await createClient();
   let query = supabase
     .from("journal_entries")
-    .select("id, owner_id, title, entry_date, place_name, tags, is_shared, body_text, owner:owner_id (name)")
+    .select("id, owner_id, title, entry_date, place_name, tags, is_shared, body_text, owner:owner_id (name), links (to_observation_id)")
     .order("entry_date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(200);
@@ -58,10 +89,14 @@ export async function listEntries(f: JournalFilter): Promise<EntrySummary[]> {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data as unknown as (Omit<EntrySummary, "preview"> & { body_text: string | null })[]).map(({ body_text, ...e }) => ({
+  type R = Omit<EntrySummary, "preview"> & { body_text: string | null; links: { to_observation_id: string | null }[] };
+  const rows = (data as unknown as R[]).map(({ body_text, links, ...e }) => ({
     ...e,
     preview: (body_text ?? "").replace(/\s+/g, " ").slice(0, 180),
+    obsIds: (links ?? []).flatMap((l) => (l.to_observation_id ? [l.to_observation_id] : [])),
   }));
+  const live = await withLiveTitles(rows, (e) => e.obsIds);
+  return live.map((e) => ({ id: e.id, owner_id: e.owner_id, title: e.title, entry_date: e.entry_date, place_name: e.place_name, tags: e.tags, is_shared: e.is_shared, preview: e.preview, owner: e.owner }));
 }
 
 /** Your tags, most used first, for the filter chips. */
@@ -101,10 +136,13 @@ export async function getEntry(id: string): Promise<Entry | null> {
     (media ?? []).forEach((m, i) => signed[i].url && urls.set(m.id, signed[i].url!));
   }
 
+  const observationIds = row.links.flatMap((l) => (l.to_observation_id ? [l.to_observation_id] : []));
+  const [{ title }] = await withLiveTitles([{ id: row.id, title: row.title }], () => observationIds);
+
   return {
     id: row.id,
     owner_id: row.owner_id,
-    title: row.title,
+    title,
     body: withMediaUrls(body, urls),
     entry_date: row.entry_date,
     place_name: row.place_name,
@@ -115,7 +153,7 @@ export async function getEntry(id: string): Promise<Entry | null> {
     is_shared: row.is_shared,
     updated_at: row.updated_at,
     owner: row.owner,
-    observationIds: row.links.flatMap((l) => (l.to_observation_id ? [l.to_observation_id] : [])),
+    observationIds,
   };
 }
 
@@ -154,9 +192,10 @@ export async function entriesForSighting(observationId: string): Promise<LinkedE
     return [];
   }
   const seen = new Set<string>();
-  return (data as unknown as { entry: LinkedEntry | null }[])
+  const entries = (data as unknown as { entry: LinkedEntry | null }[])
     .flatMap((r) => (r.entry && !seen.has(r.entry.id) && seen.add(r.entry.id) ? [r.entry] : []))
     .sort((a, b) => b.entry_date.localeCompare(a.entry_date));
+  return withLiveTitles(entries, () => [observationId]);
 }
 
 /** Your most recent entries, for the "add to an existing entry" picker. */

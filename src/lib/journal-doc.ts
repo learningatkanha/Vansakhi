@@ -149,3 +149,24 @@ export function todayIST() {
 export function searchTerm(q: string) {
   return q.replace(/[,()*%\\:"]/g, " ").replace(/\s+/g, " ").trim().slice(0, 100);
 }
+
+/** A sighting linked to an entry: its name now, and names it had before (earlier IDs and guesses). */
+export type SightingNames = { current: string; past: string[] };
+
+const normName = (s: string) => s.trim().toLowerCase().replace(/\?+$/, "").trim();
+
+/**
+ * The title to show for a journal entry. An entry started from a sighting is titled with the sighting's
+ * name at the time; if that sighting has since been renamed, show its latest name instead. A title the
+ * writer chose themselves ("Story: The Weaver Ants") is never touched.
+ */
+export function liveTitle(title: string, sightings: SightingNames[]): string {
+  const t = normName(title);
+  if (!t || sightings.length === 0) return title;
+  if (sightings.some((s) => normName(s.current) === t)) return title;
+  const renamed = sightings.find((s) => t === "unknown species" || s.past.some((p) => normName(p) === t));
+  if (renamed) return renamed.current;
+  // A guess title ("weaver ant?") on an entry about a single sighting.
+  if (title.trim().endsWith("?") && sightings.length === 1) return sightings[0].current;
+  return title;
+}

@@ -75,3 +75,17 @@ test("istDateOf gives the India date of a moment", () => {
   assert.equal(istDateOf("2026-11-20T10:00:00Z"), "2026-11-20");
   assert.equal(istDateOf("not a date"), null);
 });
+
+test("liveTitle shows a renamed sighting's latest name, but never a title the writer chose", async () => {
+  const { liveTitle } = await import("../src/lib/journal-doc.ts");
+  const ant = { current: "Orange Weaver Ant", past: ["Weaver Ant", "weaver ant"] };
+  assert.equal(liveTitle("Weaver ant", [ant]), "Orange Weaver Ant");
+  assert.equal(liveTitle("weaver ant?", [ant]), "Orange Weaver Ant");
+  assert.equal(liveTitle("Unknown species", [ant]), "Orange Weaver Ant");
+  assert.equal(liveTitle("red ants?", [ant]), "Orange Weaver Ant"); // an old guess, one sighting
+  assert.equal(liveTitle("Orange Weaver Ant", [ant]), "Orange Weaver Ant");
+  assert.equal(liveTitle("Story: The Weaver Ants", [ant]), "Story: The Weaver Ants");
+  assert.equal(liveTitle("Morning drive", [ant]), "Morning drive");
+  assert.equal(liveTitle("Weaver ant", []), "Weaver ant");
+  assert.equal(liveTitle("", [ant]), "");
+});
