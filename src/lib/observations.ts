@@ -59,6 +59,38 @@ export async function listObservations(
   return Promise.all((data as unknown as Row[]).map(withMedia));
 }
 
+/** Words safe to put inside a PostgREST `or(...)` filter: letters, digits, spaces and a few name characters. */
+export function cleanSearch(q: string) {
+  return q.replace(/[^\p{L}\p{N}\s.'-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+}
+
+/**
+ * Sightings from any day whose species name (English, scientific or Hindi), guess or place contains `q`.
+ * Your teammates' sightings are included (the database's privacy rules decide what you can see). Newest first.
+ */
+export async function searchObservations(q: string, limit = 20) {
+  const words = cleanSearch(q);
+  if (!words) return listObservations({}, limit);
+  const supabase = await createClient();
+  const like = `%${words}%`;
+  const { data: species } = await supabase
+    .from("species")
+    .select("id")
+    .or(`common_name.ilike.${like},scientific_name.ilike.${like},hindi_name.ilike.${like}`)
+    .limit(200);
+  const speciesIds = (species ?? []).map((s: { id: number }) => s.id);
+  const conditions = [`species_guess.ilike.${like}`, `place_name.ilike.${like}`];
+  if (speciesIds.length) conditions.push(`species_id.in.(${speciesIds.join(",")})`);
+  const { data, error } = await supabase
+    .from("observations")
+    .select(FIELDS)
+    .or(conditions.join(","))
+    .order("observed_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return Promise.all((data as unknown as Row[]).map(withMedia));
+}
+
 export async function getObservation(id: string) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
   const supabase = await createClient();

@@ -8,7 +8,7 @@ import { JournalEditor } from "@/components/journal-editor";
 import type { PlaceMatch } from "@/lib/places";
 import { todayIST, type DocNode } from "@/lib/journal-doc";
 import type { DaySighting } from "@/lib/journal";
-import { saveEntry, sightingsOnDay, type EntryInput, type SaveState } from "./actions";
+import { findSightings, saveEntry, sightingsOnDay, type EntryInput, type SaveState } from "./actions";
 
 export type EntryFormValues = {
   id: string | null;
@@ -56,27 +56,50 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
   const [linked, setLinked] = useState<string[]>(initial.observationIds);
   // Every sighting we have details for, so linked ones from other days still show their name and photo.
   const [known, setKnown] = useState<Record<string, DaySighting>>(() => Object.fromEntries(initialSightings.map((s) => [s.id, s])));
-  const [browseDate, setBrowseDate] = useState(initial.entryDate);
   const [day, setDay] = useState<{ date: string; list: DaySighting[] } | null>(null);
+  const [query, setQuery] = useState("");
+  const [found, setFound] = useState<{ q: string; list: DaySighting[] } | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   // A new entry links your own sightings from its date, until you pick by hand or it came from a sighting.
   const pickedByHand = useRef(initial.id !== null || initial.observationIds.length > 0);
   const dirty = useRef(false);
 
+  // The entry's own day: its sightings are listed for quick ticking.
   useEffect(() => {
     let live = true;
-    sightingsOnDay(browseDate)
+    sightingsOnDay(entryDate)
       .then((list) => {
         if (!live) return;
-        setDay({ date: browseDate, list });
+        setDay({ date: entryDate, list });
         setKnown((k) => ({ ...k, ...Object.fromEntries(list.map((s) => [s.id, s])) }));
         if (!pickedByHand.current) setLinked(list.filter((s) => s.by === null).map((s) => s.id));
       })
-      .catch(() => live && setDay({ date: browseDate, list: [] }));
+      .catch(() => live && setDay({ date: entryDate, list: [] }));
     return () => {
       live = false;
     };
-  }, [browseDate]);
+  }, [entryDate]);
+
+  // Search sightings from any day (yours and the team's), a moment after typing stops.
+  useEffect(() => {
+    if (!searchOpen) return;
+    let live = true;
+    const q = query.trim();
+    const timer = setTimeout(() => {
+      findSightings(q)
+        .then((list) => {
+          if (!live) return;
+          setFound({ q, list });
+          setKnown((k) => ({ ...k, ...Object.fromEntries(list.map((s) => [s.id, s])) }));
+        })
+        .catch(() => live && setFound({ q, list: [] }));
+    }, 300);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [query, searchOpen]);
 
   // Warn before leaving with unsaved writing.
   useEffect(() => {
@@ -93,7 +116,8 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
     pickedByHand.current = true;
     setLinked(linked.includes(id) ? linked.filter((x) => x !== id) : [...linked, id]);
   };
-  const dayList = day && day.date === browseDate ? day.list : null;
+  const dayList = day && day.date === entryDate ? day.list : null;
+  const foundList = found && found.q === query.trim() ? found.list : null;
 
   const payload: EntryInput = {
     id: initial.id,
@@ -154,7 +178,6 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
               touch();
               if (e.target.value) {
                 setEntryDate(e.target.value);
-                setBrowseDate(e.target.value);
               }
             }}
           />
@@ -202,7 +225,7 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
 
         <div>
           <p className="mb-1.5 text-sm font-medium">Linked sightings</p>
-          {linked.length === 0 && <p className="text-xs text-muted">None yet. Tick sightings below to link them.</p>}
+          {linked.length === 0 && <p className="text-xs text-muted">None yet. Search below, or tick a sighting from this day.</p>}
           {linked.length > 0 && (
             <ul className="space-y-1.5">
               {linked.map((id) => {
@@ -227,40 +250,77 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
           )}
         </div>
 
-        <div>
-          <Label htmlFor="browse-date">Find sightings by day</Label>
+        <div className="relative">
+          <Label htmlFor="sighting-search">Link a sighting from any day</Label>
           <Input
-            id="browse-date"
-            type="date"
-            value={browseDate}
-            max={todayIST()}
+            id="sighting-search"
+            type="search"
+            value={query}
+            autoComplete="off"
+            placeholder="Type a name or place…"
+            onFocus={() => setSearchOpen(true)}
+            onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
             onChange={(e) => {
-              if (!e.target.value) return;
-              pickedByHand.current = true;
-              setBrowseDate(e.target.value);
+              setQuery(e.target.value);
+              setSearchOpen(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setSearchOpen(false);
+              if (e.key === "Enter") e.preventDefault(); // don't save the entry from the search box
             }}
           />
-          <div className="mt-2">
-            {dayList === null && <p className="text-xs text-muted">Looking…</p>}
-            {dayList?.length === 0 && <p className="text-xs text-muted">No sightings were recorded on this day.</p>}
-            {dayList && dayList.length > 0 && (
-              <ul className="max-h-80 space-y-1.5 overflow-y-auto">
-                {dayList.map((s) => {
-                  const on = linked.includes(s.id);
-                  return (
-                    <li key={s.id}>
-                      <label
-                        className={`flex cursor-pointer items-center gap-2 rounded-lg border p-1.5 text-sm ${on ? "border-forest-600 bg-forest-50" : "border-line bg-paper"}`}
-                      >
-                        <input type="checkbox" checked={on} onChange={() => toggle(s.id)} className="accent-forest-600" />
-                        <SightingRow s={s} />
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+          <p className="mt-1 text-xs text-muted">Yours and your teammates&apos; sightings.</p>
+          {searchOpen && (
+            <div className="absolute inset-x-0 top-[4.25rem] z-20 max-h-80 overflow-y-auto rounded-lg border border-line bg-paper p-1.5 shadow-lg">
+              {foundList === null && <p className="p-1.5 text-xs text-muted">Looking…</p>}
+              {foundList?.length === 0 && <p className="p-1.5 text-xs text-muted">No sightings match.</p>}
+              {foundList && foundList.length > 0 && (
+                <ul className="space-y-1">
+                  {!query.trim() && <li className="px-1.5 pb-0.5 text-[11px] uppercase tracking-wide text-muted">Latest sightings</li>}
+                  {foundList.map((s) => {
+                    const on = linked.includes(s.id);
+                    return (
+                      <li key={s.id}>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()} // keep the list open while choosing
+                          onClick={() => toggle(s.id)}
+                          className={`flex w-full items-center gap-2 rounded-md border p-1.5 text-left text-sm ${on ? "border-forest-600 bg-forest-50" : "border-transparent hover:bg-wash"}`}
+                        >
+                          <SightingRow s={s}>
+                            <span className={`shrink-0 text-xs ${on ? "font-medium text-forest-700" : "text-muted"}`}>{on ? "✓ Linked" : "Link"}</span>
+                          </SightingRow>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-1.5 text-sm font-medium">Sightings on this day</p>
+          {dayList === null && <p className="text-xs text-muted">Looking…</p>}
+          {dayList?.length === 0 && <p className="text-xs text-muted">No sightings were recorded on this day.</p>}
+          {dayList && dayList.length > 0 && (
+            <ul className="max-h-80 space-y-1.5 overflow-y-auto">
+              {dayList.map((s) => {
+                const on = linked.includes(s.id);
+                return (
+                  <li key={s.id}>
+                    <label
+                      className={`flex cursor-pointer items-center gap-2 rounded-lg border p-1.5 text-sm ${on ? "border-forest-600 bg-forest-50" : "border-line bg-paper"}`}
+                    >
+                      <input type="checkbox" checked={on} onChange={() => toggle(s.id)} className="accent-forest-600" />
+                      <SightingRow s={s} />
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
         <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-line bg-paper p-3 text-sm">

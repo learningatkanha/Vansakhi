@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { signedViewUrl } from "@/lib/r2";
-import { listObservations } from "@/lib/observations";
+import { listObservations, searchObservations } from "@/lib/observations";
 import { toDaySighting, type DaySighting } from "@/lib/journal";
 import { cleanDoc, docText, istDayRange, mediaIdsIn, parseTags, todayIST, withMediaUrls } from "@/lib/journal-doc";
 
@@ -157,6 +157,13 @@ export async function sightingsOnDay(date: string): Promise<DaySighting[]> {
   const list = await listObservations({ between }, 100);
   const rows = list.map((o) => toDaySighting(o, member.id));
   return [...rows.filter((s) => s.by === null), ...rows.filter((s) => s.by !== null)];
+}
+
+/** Sightings from any day, yours and the team's, matching a name or place. Empty search = the latest ones. */
+export async function findSightings(q: string): Promise<DaySighting[]> {
+  const member = await getCurrentMember();
+  const list = await searchObservations(String(q ?? ""), 20);
+  return list.map((o) => toDaySighting(o, member.id));
 }
 
 /** Links one of your entries to a sighting (from the sighting's page). */
