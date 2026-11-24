@@ -249,7 +249,7 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
         </div>
 
         <div className="relative">
-          <Label htmlFor="sighting-search">Link a sighting from any day</Label>
+          <Label htmlFor="sighting-search">Link another sighting</Label>
           <Input
             id="sighting-search"
             type="search"
