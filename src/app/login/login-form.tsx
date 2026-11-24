@@ -4,10 +4,15 @@ import { useActionState, useState } from "react";
 import { sendSignInLink, signInWithPassword, type PasswordState, type SignInState } from "./actions";
 import { Button, Input, Label } from "@/components/ui";
 
-export function LoginForm({ linkError = false }: { linkError?: boolean }) {
+export function LoginForm({ linkError = false, blocked = false }: { linkError?: boolean; blocked?: boolean }) {
   const [mode, setMode] = useState<"password" | "link">("password");
   return (
     <div className="space-y-4">
+      {blocked && (
+        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          This account no longer has access to the journal. Please speak to the admin.
+        </p>
+      )}
       {linkError && (
         <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
           That link has expired or was already used. Sign in with your password, or ask for a new link.

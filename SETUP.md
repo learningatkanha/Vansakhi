@@ -94,6 +94,8 @@ and **Run**, before the new version of the app goes live. Run each file once, in
   for which photos an entry may link to.
 - `0006_fix_links_rule.sql` (fix): lets journal entries link to sightings and photos again (the 0005 rule
   looped with the photos rule, so the database refused every link).
+- `0007_admin_powers.sql` (admin): admins can read and delete every journal entry (private ones too) and
+  any comment, and can block members. A blocked member can't sign in or see anything; their work stays.
 
 ## Later phases
 

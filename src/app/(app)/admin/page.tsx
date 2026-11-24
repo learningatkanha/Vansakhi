@@ -5,13 +5,14 @@ import { Card, PageHeader } from "@/components/ui";
 import { changeRole } from "./actions";
 import { InviteForm } from "./invite-form";
 import { ResetPasswordButton } from "./reset-button";
+import { BlockButton } from "./block-button";
 
 export default async function AdminPage() {
   const me = await requireAdmin();
   const supabase = await createClient();
   const { data: members } = await supabase
     .from("profiles")
-    .select("id, email, name, role, created_at")
+    .select("id, email, name, role, created_at, blocked_at")
     .order("created_at");
 
   return (
@@ -32,14 +33,19 @@ export default async function AdminPage() {
             {(members ?? []).map((m) => (
               <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
                 <div>
-                  <p className="text-sm font-medium">{m.name ?? "Not signed in yet"}</p>
+                  <p className="text-sm font-medium">
+                    {m.name ?? "Not signed in yet"}
+                    {m.blocked_at && (
+                      <span className="ml-2 rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-800">Blocked</span>
+                    )}
+                  </p>
                   <p className="text-xs text-muted">{m.email}</p>
                 </div>
                 {m.id === me.id ? (
                   <span className="text-sm text-muted">Admin (you)</span>
                 ) : (
                   <div className="flex flex-wrap items-center gap-4">
-                  <ResetPasswordButton id={m.id} email={m.email} />
+                  {!m.blocked_at && <ResetPasswordButton id={m.id} email={m.email} />}
                   <form action={changeRole} className="flex items-center gap-2">
                     <input type="hidden" name="id" value={m.id} />
                     <select
@@ -55,6 +61,7 @@ export default async function AdminPage() {
                       Save
                     </button>
                   </form>
+                  <BlockButton id={m.id} email={m.email} blocked={Boolean(m.blocked_at)} />
                   </div>
                 )}
               </li>

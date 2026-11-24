@@ -63,3 +63,32 @@ export async function changeRole(formData: FormData) {
   await createAdminClient().from("profiles").update({ role }).eq("id", id);
   revalidatePath("/admin");
 }
+
+export type BlockState = { error?: string };
+
+/**
+ * Blocks or unblocks a member. Blocking bans their login (Supabase Auth) and marks them blocked, which the
+ * database rules treat as "not on the team", so an open session loses access straight away too.
+ * Their sightings and journal entries stay; the admin can delete any of them.
+ */
+export async function setBlocked(_prev: BlockState, formData: FormData): Promise<BlockState> {
+  const me = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const block = formData.get("block") === "1";
+  if (!id) return { error: "Missing member." };
+  if (id === me.id) return { error: "You can't block yourself." };
+
+  const admin = createAdminClient();
+  const { error: authError } = await admin.auth.admin.updateUserById(id, { ban_duration: block ? "876000h" : "none" });
+  if (authError) {
+    console.error("block member (auth):", authError.message);
+    return { error: block ? "Could not block them." : "Could not unblock them." };
+  }
+  const { error } = await admin.from("profiles").update({ blocked_at: block ? new Date().toISOString() : null }).eq("id", id);
+  if (error) {
+    console.error("block member (profile):", error.message);
+    return { error: "Their login was changed, but the team list could not be updated. Please try again." };
+  }
+  revalidatePath("/admin");
+  return {};
+}

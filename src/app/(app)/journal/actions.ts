@@ -108,14 +108,16 @@ export async function saveEntry(_prev: SaveState, formData: FormData): Promise<S
 }
 
 export async function deleteEntry(formData: FormData) {
-  await getCurrentMember();
+  const member = await getCurrentMember();
   const id = String(formData.get("id") ?? "");
+  if (!UUID.test(id)) return;
   const supabase = await createClient();
-  // Row-level security allows this only for the entry's owner. Photos stay in your media library.
+  const { data: entry } = await supabase.from("journal_entries").select("owner_id").eq("id", id).maybeSingle();
+  // Row-level security allows this only for the entry's owner or the admin. Photos stay in the media library.
   const { error } = await supabase.from("journal_entries").delete().eq("id", id);
   if (error) console.error("delete journal entry:", error.message);
   revalidatePath("/journal");
-  redirect("/journal");
+  redirect(entry && entry.owner_id !== member.id ? "/journal?show=team&all=1" : "/journal");
 }
 
 export type UploadedMedia = { key: string; kind: "photo" | "video"; mime: string; size: number; takenAt?: string; lat?: number; lng?: number };

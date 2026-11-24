@@ -68,9 +68,9 @@ export type Entry = {
   observationIds: string[];
 };
 
-export type JournalFilter = { scope: "mine" | "team"; memberId: string; q?: string; tag?: string; month?: string; observationId?: string };
+export type JournalFilter = { scope: "mine" | "team"; memberId: string; isAdmin?: boolean; q?: string; tag?: string; month?: string; observationId?: string };
 
-/** Entries for the journal timeline, newest first. Row-level security keeps other people's private entries out. */
+/** Entries for the journal timeline, newest first. Row-level security keeps other people's private entries out (except for the admin). */
 export async function listEntries(f: JournalFilter): Promise<EntrySummary[]> {
   const supabase = await createClient();
 
@@ -90,7 +90,12 @@ export async function listEntries(f: JournalFilter): Promise<EntrySummary[]> {
     .order("created_at", { ascending: false })
     .limit(200);
 
-  query = f.scope === "mine" ? query.eq("owner_id", f.memberId) : query.eq("is_shared", true).neq("owner_id", f.memberId);
+  // Team view: other people's shared entries; the admin sees their private ones too.
+  if (f.scope === "mine") query = query.eq("owner_id", f.memberId);
+  else {
+    query = query.neq("owner_id", f.memberId);
+    if (!f.isAdmin) query = query.eq("is_shared", true);
+  }
 
   if (onlyIds) query = query.in("id", onlyIds);
 

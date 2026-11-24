@@ -21,6 +21,7 @@ export default async function EntryPage({ params, searchParams }: PageProps<"/jo
   const [member, entry] = await Promise.all([getCurrentMember(), getEntry(id)]);
   if (!entry) notFound();
   const mine = entry.owner_id === member.id;
+  const admin = member.role === "admin";
   const sightings = await listObservations({ ids: entry.observationIds }, 100);
 
   return (
@@ -58,6 +59,12 @@ export default async function EntryPage({ params, searchParams }: PageProps<"/jo
         </div>
       </header>
 
+      {!mine && !entry.is_shared && (
+        <p className="mt-6 rounded-xl border border-amber-500 bg-amber-50 p-3 text-sm text-amber-900">
+          This is {entry.owner?.name ?? "a teammate"}&apos;s private entry. You can see it because you are the admin.
+        </p>
+      )}
+
       <div className="mt-8 rounded-xl border border-line bg-paper px-6 py-6">
         <JournalBody doc={entry.body} />
       </div>
@@ -73,13 +80,15 @@ export default async function EntryPage({ params, searchParams }: PageProps<"/jo
         </section>
       )}
 
-      {mine && (
+      {(mine || admin) && (
         <div className="mt-10 flex items-center gap-4 border-t border-line pt-6 text-sm">
-          <Link href={`/journal/${entry.id}/edit`} className="font-medium text-forest-700 hover:underline">
-            Edit entry
-          </Link>
+          {mine && (
+            <Link href={`/journal/${entry.id}/edit`} className="font-medium text-forest-700 hover:underline">
+              Edit entry
+            </Link>
+          )}
           <div className="ml-auto">
-            <DeleteEntryButton id={entry.id} />
+            <DeleteEntryButton id={entry.id} owner={mine ? null : (entry.owner?.name ?? "a teammate")} />
           </div>
         </div>
       )}

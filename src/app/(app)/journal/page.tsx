@@ -37,7 +37,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
   const mode: "sighting" | "all" | "pick" = obsId ? "sighting" : one(sp.all) === "1" || filtered ? "all" : "pick";
 
   const [entries, tags, sightingList] = await Promise.all([
-    mode === "pick" ? Promise.resolve([]) : listEntries({ scope, memberId: member.id, q, tag, month, observationId: mode === "sighting" ? obsId : undefined }),
+    mode === "pick" ? Promise.resolve([]) : listEntries({ scope, memberId: member.id, isAdmin: member.role === "admin", q, tag, month, observationId: mode === "sighting" ? obsId : undefined }),
     scope === "mine" && mode === "all" ? myTags(member.id) : Promise.resolve([]),
     listObservations(scope === "mine" ? { observerId: member.id } : {}, 100),
   ]);
@@ -230,6 +230,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
                               <span key={t}>#{t}</span>
                             ))}
                             {scope === "mine" && e.is_shared && <span className="text-forest-700">Shared</span>}
+                            {scope === "team" && !e.is_shared && <span className="text-amber-700">Private (admin view)</span>}
                           </p>
                         </div>
                       </Link>

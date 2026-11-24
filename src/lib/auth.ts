@@ -22,7 +22,8 @@ export const getCurrentMember = cache(async (): Promise<Member> => {
     .select("id, email, name, role")
     .eq("id", userId)
     .single();
-  if (!profile) redirect("/login");
+  // No readable profile = not on the team any more (blocked by an admin).
+  if (!profile) redirect("/login?error=blocked");
 
   return profile as Member;
 });

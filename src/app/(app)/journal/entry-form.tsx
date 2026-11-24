@@ -310,7 +310,7 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
           />
           <span>
             <span className="font-medium">Share with the team</span>
-            <span className="block text-xs text-muted">Untick to keep this entry to yourself.</span>
+            <span className="block text-xs text-muted">Untick so only you and the admin can see this entry.</span>
           </span>
         </label>
 
