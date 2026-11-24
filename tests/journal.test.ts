@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { hasHevcMarker } from "../src/lib/video-check.ts";
 import { byNearness, cleanDoc, docText, istDateOf, istDayRange, mediaIdsIn, parseTags, searchTerm, withMediaUrls } from "../src/lib/journal-doc.ts";
 
 const ID1 = "11111111-1111-4111-8111-111111111111";
@@ -112,4 +113,12 @@ test("byNearness puts the entry's day first, then the closest days either side",
       "2026-11-10T06:00:00+05:30",
     ],
   );
+});
+
+test("hasHevcMarker spots HEVC video tracks and ignores H.264 ones", () => {
+  const box = (type: string) => new Uint8Array([0, 0, 0, 0x6c, ...Array.from(type, (c) => c.charCodeAt(0)), 0, 0, 0, 0]);
+  assert.equal(hasHevcMarker(box("hvc1")), true);
+  assert.equal(hasHevcMarker(box("hev1")), true);
+  assert.equal(hasHevcMarker(box("avc1")), false);
+  assert.equal(hasHevcMarker(new Uint8Array([0x68, 0x76, 0x63])), false); // cut short: "hvc"
 });

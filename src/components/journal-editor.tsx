@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import { Placeholder } from "@tiptap/extensions";
 import { journalExtensions } from "./journal-tiptap";
-import { kindOf, uploadFile } from "@/lib/upload-client";
+import { kindOf, uploadFile, videoWarning } from "@/lib/upload-client";
 import { addEntryMedia } from "@/app/(app)/journal/actions";
 import type { DocNode } from "@/lib/journal-doc";
 
 type Pending = { id: string; name: string; progress: number; error?: string };
+type Warning = { id: string; name: string; text: string };
 
 /** The distraction-free journal editor: rich text plus photos and videos dropped in where the cursor is. */
 export function JournalEditor({
@@ -21,6 +22,7 @@ export function JournalEditor({
   onBusyChange?: (busy: boolean) => void;
 }) {
   const [pending, setPending] = useState<Pending[]>([]);
+  const [warnings, setWarnings] = useState<Warning[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const busy = useRef(0);
   // The drop and paste handlers below are created once, so they reach the editor and callbacks through refs.
@@ -64,6 +66,7 @@ export function JournalEditor({
   async function addFiles(files: File[]) {
     for (const file of files) {
       const id = crypto.randomUUID();
+      void videoWarning(file).then((text) => text && setWarnings((w) => [...w, { id, name: file.name, text }]));
       setPending((p) => [...p, { id, name: file.name, progress: 0 }]);
       setBusy(1);
       try {
@@ -95,6 +98,18 @@ export function JournalEditor({
           e.target.value = "";
         }}
       />
+      {warnings.length > 0 && (
+        <ul className="mt-2 space-y-1.5">
+          {warnings.map((w) => (
+            <li key={w.id} className="rounded-lg border border-amber-500 bg-amber-50 p-2 text-xs text-amber-900">
+              <span className="font-medium">⚠ {w.name}:</span> {w.text} You can delete it from the entry and add the new one.{" "}
+              <button type="button" className="underline" onClick={() => setWarnings((x) => x.filter((y) => y.id !== w.id))}>
+                OK
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {pending.length > 0 && (
         <ul className="mt-2 space-y-1 text-xs">
           {pending.map((p) => (

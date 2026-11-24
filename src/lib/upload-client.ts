@@ -1,6 +1,7 @@
 "use client";
 
 import exifr from "exifr";
+import { HEVC_WARNING, UNPLAYABLE_WARNING, hasHevcMarker } from "@/lib/video-check";
 
 /** Browser-side upload of one photo or video straight to R2. Used by the sighting form and the journal editor. */
 
@@ -40,6 +41,46 @@ export async function shrinkPhoto(file: File): Promise<Blob> {
     return blob ?? file;
   } catch {
     return file;
+  }
+}
+
+/** The video track description sits near the start or the end of a phone video, so read just those parts. */
+async function isHevc(file: File) {
+  const part = 4 * 1024 * 1024;
+  const slices = file.size <= 2 * part ? [file] : [file.slice(0, part), file.slice(file.size - part)];
+  for (const s of slices) if (hasHevcMarker(new Uint8Array(await s.arrayBuffer()))) return true;
+  return false;
+}
+
+/** Whether this browser can show the video's first frame. null = couldn't tell in time. */
+function canShowVideo(file: File): Promise<boolean | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    const done = (result: boolean | null) => {
+      clearTimeout(timer);
+      video.removeAttribute("src");
+      video.load();
+      URL.revokeObjectURL(url);
+      resolve(result);
+    };
+    const timer = setTimeout(() => done(null), 10_000);
+    video.muted = true;
+    video.preload = "auto";
+    video.onloadeddata = () => done(video.videoWidth > 0);
+    video.onerror = () => done(false);
+    video.src = url;
+  });
+}
+
+/** A warning to show if a video probably won't play for others, else null. Never throws. */
+export async function videoWarning(file: File): Promise<string | null> {
+  if (kindOf(file) !== "video") return null;
+  try {
+    if (await isHevc(file)) return HEVC_WARNING;
+    return (await canShowVideo(file)) === false ? UNPLAYABLE_WARNING : null;
+  } catch {
+    return null;
   }
 }
 

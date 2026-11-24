@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { kindOf, readPhotoData, uploadFile } from "@/lib/upload-client";
+import { kindOf, readPhotoData, uploadFile, videoWarning } from "@/lib/upload-client";
 
 export type UploadItem = {
   id: string;
@@ -17,6 +17,7 @@ export type UploadItem = {
   lat?: number;
   lng?: number;
   error?: string;
+  warning?: string; // e.g. an HEVC video that won't play on computers
   mediaId?: string; // set for photos already saved with the sighting (when editing)
 };
 
@@ -51,6 +52,7 @@ export function MediaUploader({ onChange, initial = [] }: { onChange: (items: Up
       setItems(latest.current);
       onChange(latest.current);
       void upload(id, file, kind);
+      if (kind === "video") void videoWarning(file).then((warning) => warning && update(id, { warning }));
     }
   }
 
@@ -110,11 +112,26 @@ export function MediaUploader({ onChange, initial = [] }: { onChange: (items: Up
               </button>
               <div className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1 text-[11px] text-white">
                 {it.status === "uploading" && `Uploading ${it.progress}%`}
-                {it.status === "done" && (it.kind === "video" ? "▶ Video ready" : "Ready")}
+                {it.status === "done" && (it.warning ? "⚠ May not play" : it.kind === "video" ? "▶ Video ready" : "Ready")}
                 {it.status === "error" && <span className="text-red-200">{it.error}</span>}
               </div>
             </li>
           ))}
+        </ul>
+      )}
+
+      {items.some((it) => it.warning) && (
+        <ul className="mt-3 space-y-2">
+          {items
+            .filter((it) => it.warning)
+            .map((it) => (
+              <li key={it.id} className="rounded-lg border border-amber-500 bg-amber-50 p-2.5 text-sm text-amber-900">
+                <span className="font-medium">⚠ {it.name}:</span> {it.warning}{" "}
+                <button type="button" onClick={() => remove(it.id)} className="font-medium underline">
+                  Remove it
+                </button>
+              </li>
+            ))}
         </ul>
       )}
     </div>
