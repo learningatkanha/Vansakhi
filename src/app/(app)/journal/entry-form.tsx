@@ -56,26 +56,25 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
   const [linked, setLinked] = useState<string[]>(initial.observationIds);
   // Every sighting we have details for, so linked ones from other days still show their name and photo.
   const [known, setKnown] = useState<Record<string, DaySighting>>(() => Object.fromEntries(initialSightings.map((s) => [s.id, s])));
-  const [day, setDay] = useState<{ date: string; list: DaySighting[] } | null>(null);
   const [query, setQuery] = useState("");
-  const [found, setFound] = useState<{ q: string; list: DaySighting[] } | null>(null);
+  const [found, setFound] = useState<{ q: string; date: string; list: DaySighting[] } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   // A new entry links your own sightings from its date, until you pick by hand or it came from a sighting.
   const pickedByHand = useRef(initial.id !== null || initial.observationIds.length > 0);
   const dirty = useRef(false);
 
-  // The entry's own day: its sightings are listed for quick ticking.
+  // A new entry starts linked to your own sightings from its date (they show under "Linked sightings").
   useEffect(() => {
+    if (pickedByHand.current) return;
     let live = true;
     sightingsOnDay(entryDate)
       .then((list) => {
-        if (!live) return;
-        setDay({ date: entryDate, list });
+        if (!live || pickedByHand.current) return;
         setKnown((k) => ({ ...k, ...Object.fromEntries(list.map((s) => [s.id, s])) }));
-        if (!pickedByHand.current) setLinked(list.filter((s) => s.by === null).map((s) => s.id));
+        setLinked(list.filter((s) => s.by === null).map((s) => s.id));
       })
-      .catch(() => live && setDay({ date: entryDate, list: [] }));
+      .catch(() => {});
     return () => {
       live = false;
     };
@@ -87,19 +86,19 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
     let live = true;
     const q = query.trim();
     const timer = setTimeout(() => {
-      findSightings(q)
+      findSightings(q, entryDate)
         .then((list) => {
           if (!live) return;
-          setFound({ q, list });
+          setFound({ q, date: entryDate, list });
           setKnown((k) => ({ ...k, ...Object.fromEntries(list.map((s) => [s.id, s])) }));
         })
-        .catch(() => live && setFound({ q, list: [] }));
+        .catch(() => live && setFound({ q, date: entryDate, list: [] }));
     }, 300);
     return () => {
       live = false;
       clearTimeout(timer);
     };
-  }, [query, searchOpen]);
+  }, [query, searchOpen, entryDate]);
 
   // Warn before leaving with unsaved writing.
   useEffect(() => {
@@ -116,8 +115,7 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
     pickedByHand.current = true;
     setLinked(linked.includes(id) ? linked.filter((x) => x !== id) : [...linked, id]);
   };
-  const dayList = day && day.date === entryDate ? day.list : null;
-  const foundList = found && found.q === query.trim() ? found.list : null;
+  const foundList = found && found.q === query.trim() && found.date === entryDate ? found.list : null;
 
   const payload: EntryInput = {
     id: initial.id,
@@ -225,7 +223,7 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
 
         <div>
           <p className="mb-1.5 text-sm font-medium">Linked sightings</p>
-          {linked.length === 0 && <p className="text-xs text-muted">None yet. Search below, or tick a sighting from this day.</p>}
+          {linked.length === 0 && <p className="text-xs text-muted">None yet. Search below to link one.</p>}
           {linked.length > 0 && (
             <ul className="space-y-1.5">
               {linked.map((id) => {
@@ -276,7 +274,7 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
               {foundList?.length === 0 && <p className="p-1.5 text-xs text-muted">No sightings match.</p>}
               {foundList && foundList.length > 0 && (
                 <ul className="space-y-1">
-                  {!query.trim() && <li className="px-1.5 pb-0.5 text-[11px] uppercase tracking-wide text-muted">Latest sightings</li>}
+                  {!query.trim() && <li className="px-1.5 pb-0.5 text-[11px] uppercase tracking-wide text-muted">This day first, then nearby days</li>}
                   {foundList.map((s) => {
                     const on = linked.includes(s.id);
                     return (
@@ -297,29 +295,6 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
                 </ul>
               )}
             </div>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-1.5 text-sm font-medium">Sightings on this day</p>
-          {dayList === null && <p className="text-xs text-muted">Looking…</p>}
-          {dayList?.length === 0 && <p className="text-xs text-muted">No sightings were recorded on this day.</p>}
-          {dayList && dayList.length > 0 && (
-            <ul className="max-h-80 space-y-1.5 overflow-y-auto">
-              {dayList.map((s) => {
-                const on = linked.includes(s.id);
-                return (
-                  <li key={s.id}>
-                    <label
-                      className={`flex cursor-pointer items-center gap-2 rounded-lg border p-1.5 text-sm ${on ? "border-forest-600 bg-forest-50" : "border-line bg-paper"}`}
-                    >
-                      <input type="checkbox" checked={on} onChange={() => toggle(s.id)} className="accent-forest-600" />
-                      <SightingRow s={s} />
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
           )}
         </div>
 

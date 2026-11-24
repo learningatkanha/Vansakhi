@@ -134,6 +134,20 @@ export function istDayRange(date: string): { from: string; to: string } | null {
   return { from: from.toISOString(), to: new Date(+from + 86_400_000).toISOString() };
 }
 
+/**
+ * Orders sightings for a journal entry's day: that day's first (earliest to latest), then the nearest days,
+ * before or after, getting further away.
+ */
+export function byNearness<T extends { observed_at: string }>(items: T[], day: { from: string; to: string }): T[] {
+  const from = +new Date(day.from);
+  const to = +new Date(day.to);
+  const gap = (iso: string) => {
+    const t = +new Date(iso);
+    return t < from ? from - t : t >= to ? t - to + 1 : 0;
+  };
+  return [...items].sort((a, b) => gap(a.observed_at) - gap(b.observed_at) || +new Date(a.observed_at) - +new Date(b.observed_at));
+}
+
 /** The India-time date of a moment, "2026-11-20". */
 export function istDateOf(iso: string): string | null {
   const d = new Date(iso);

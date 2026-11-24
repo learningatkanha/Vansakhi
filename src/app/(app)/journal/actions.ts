@@ -159,10 +159,13 @@ export async function sightingsOnDay(date: string): Promise<DaySighting[]> {
   return [...rows.filter((s) => s.by === null), ...rows.filter((s) => s.by !== null)];
 }
 
-/** Sightings from any day, yours and the team's, matching a name or place. Empty search = the latest ones. */
-export async function findSightings(q: string): Promise<DaySighting[]> {
+/**
+ * Sightings from any day, yours and the team's, matching a name or place (empty search = all),
+ * with the journal entry's day first and then the nearest days.
+ */
+export async function findSightings(q: string, entryDate: string): Promise<DaySighting[]> {
   const member = await getCurrentMember();
-  const list = await searchObservations(String(q ?? ""), 20);
+  const list = await searchObservations(String(q ?? ""), 20, istDayRange(String(entryDate ?? "")) ?? undefined);
   return list.map((o) => toDaySighting(o, member.id));
 }
 

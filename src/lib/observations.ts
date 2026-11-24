@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { viewUrls } from "@/lib/media";
+import { byNearness } from "@/lib/journal-doc";
 
 const FIELDS = `id, observer_id, observed_at, place_name, lat, lng, count, notes, life_stage, sex, behaviour, habitat, weather, id_status, species_guess,
   species:species_id (id, gbif_key, common_name, scientific_name, hindi_name, group_name),
@@ -65,30 +66,44 @@ export function cleanSearch(q: string) {
 }
 
 /**
- * Sightings from any day whose species name (English, scientific or Hindi), guess or place contains `q`.
- * Your teammates' sightings are included (the database's privacy rules decide what you can see). Newest first.
+ * Sightings from any day whose species name (English, scientific or Hindi), guess or place contains `q`
+ * (empty `q` = all). Your teammates' sightings are included (the database's privacy rules decide what you can see).
+ * Newest first; or, given a `day`, that day's first and then the nearest days.
  */
-export async function searchObservations(q: string, limit = 20) {
+export async function searchObservations(q: string, limit = 20, day?: { from: string; to: string }) {
   const words = cleanSearch(q);
-  if (!words) return listObservations({}, limit);
   const supabase = await createClient();
-  const like = `%${words}%`;
-  const { data: species } = await supabase
-    .from("species")
-    .select("id")
-    .or(`common_name.ilike.${like},scientific_name.ilike.${like},hindi_name.ilike.${like}`)
-    .limit(200);
-  const speciesIds = (species ?? []).map((s: { id: number }) => s.id);
-  const conditions = [`species_guess.ilike.${like}`, `place_name.ilike.${like}`];
-  if (speciesIds.length) conditions.push(`species_id.in.(${speciesIds.join(",")})`);
-  const { data, error } = await supabase
-    .from("observations")
-    .select(FIELDS)
-    .or(conditions.join(","))
-    .order("observed_at", { ascending: false })
-    .limit(limit);
-  if (error) throw new Error(error.message);
-  return Promise.all((data as unknown as Row[]).map(withMedia));
+  let match: string | null = null;
+  if (words) {
+    const like = `%${words}%`;
+    const { data: species } = await supabase
+      .from("species")
+      .select("id")
+      .or(`common_name.ilike.${like},scientific_name.ilike.${like},hindi_name.ilike.${like}`)
+      .limit(200);
+    const speciesIds = (species ?? []).map((s: { id: number }) => s.id);
+    const conditions = [`species_guess.ilike.${like}`, `place_name.ilike.${like}`];
+    if (speciesIds.length) conditions.push(`species_id.in.(${speciesIds.join(",")})`);
+    match = conditions.join(",");
+  }
+  const base = () => {
+    const query = supabase.from("observations").select(FIELDS);
+    return match ? query.or(match) : query;
+  };
+  const rows = async (query: ReturnType<typeof base>) => {
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data as unknown as Row[];
+  };
+
+  if (!day) return Promise.all((await rows(base().order("observed_at", { ascending: false }).limit(limit))).map(withMedia));
+
+  // Up to `limit` on or before the day (going back) and up to `limit` after it (going forward), then the closest.
+  const [before, after] = await Promise.all([
+    rows(base().lt("observed_at", day.to).order("observed_at", { ascending: false }).limit(limit)),
+    rows(base().gte("observed_at", day.to).order("observed_at", { ascending: true }).limit(limit)),
+  ]);
+  return Promise.all(byNearness([...before, ...after], day).slice(0, limit).map(withMedia));
 }
 
 export async function getObservation(id: string) {

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cleanDoc, docText, istDateOf, istDayRange, mediaIdsIn, parseTags, searchTerm, withMediaUrls } from "../src/lib/journal-doc.ts";
+import { byNearness, cleanDoc, docText, istDateOf, istDayRange, mediaIdsIn, parseTags, searchTerm, withMediaUrls } from "../src/lib/journal-doc.ts";
 
 const ID1 = "11111111-1111-4111-8111-111111111111";
 const ID2 = "22222222-2222-4222-8222-222222222222";
@@ -88,4 +88,28 @@ test("liveTitle shows a renamed sighting's latest name, but never a title the wr
   assert.equal(liveTitle("Morning drive", [ant]), "Morning drive");
   assert.equal(liveTitle("Weaver ant", []), "Weaver ant");
   assert.equal(liveTitle("", [ant]), "");
+});
+
+test("byNearness puts the entry's day first, then the closest days either side", () => {
+  const day = istDayRange("2026-11-20")!;
+  const at = (iso: string) => ({ observed_at: iso });
+  const items = [
+    at("2026-11-10T06:00:00+05:30"), // 10 days before
+    at("2026-11-20T17:00:00+05:30"), // same day, evening
+    at("2026-11-22T08:00:00+05:30"), // 2 days after
+    at("2026-11-19T18:00:00+05:30"), // the evening before
+    at("2026-11-20T06:30:00+05:30"), // same day, morning
+    at("2026-11-21T00:10:00+05:30"), // just after midnight
+  ];
+  assert.deepEqual(
+    byNearness(items, day).map((x) => x.observed_at),
+    [
+      "2026-11-20T06:30:00+05:30",
+      "2026-11-20T17:00:00+05:30",
+      "2026-11-21T00:10:00+05:30",
+      "2026-11-19T18:00:00+05:30",
+      "2026-11-22T08:00:00+05:30",
+      "2026-11-10T06:00:00+05:30",
+    ],
+  );
 });

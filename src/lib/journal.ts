@@ -194,6 +194,7 @@ export function toDaySighting(o: Observation, me: string): DaySighting {
     when: new Date(o.observed_at).toLocaleString("en-IN", {
       day: "numeric",
       month: "short",
+      year: "numeric",
       hour: "numeric",
       minute: "2-digit",
       timeZone: "Asia/Kolkata",
