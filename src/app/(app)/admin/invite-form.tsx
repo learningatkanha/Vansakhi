@@ -18,7 +18,8 @@ export function InviteForm() {
       </div>
       <div>
         <Label htmlFor="invite-role">Role</Label>
-        <select id="invite-role" name="role" className="h-10 rounded-lg border border-line bg-paper px-3 text-sm">
+        <select id="invite-role" name="role" defaultValue="observer" className="h-10 rounded-lg border border-line bg-paper px-3 text-sm">
+          <option value="observer">Observer</option>
           <option value="researcher">Researcher</option>
           <option value="admin">Admin</option>
         </select>

@@ -54,6 +54,7 @@ export default async function AdminPage() {
                       className="h-9 rounded-lg border border-line bg-paper px-2 text-sm"
                       aria-label={`Role for ${m.email}`}
                     >
+                      <option value="observer">Observer</option>
                       <option value="researcher">Researcher</option>
                       <option value="admin">Admin</option>
                     </select>

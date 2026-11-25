@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, roleFrom } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/env";
 import { passwordProblem, temporaryPassword } from "@/lib/passwords";
@@ -12,7 +12,7 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
   await requireAdmin();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const name = String(formData.get("name") ?? "").trim();
-  const role = formData.get("role") === "admin" ? "admin" : "researcher";
+  const role = roleFrom(formData.get("role"));
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Please enter a valid email address." };
 
   // The admin adds the person directly with a temporary password and passes it on;
@@ -30,7 +30,7 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
     return { error: /already|exists|registered/i.test(error.message) ? "That person is already on the team." : "Could not add them." };
   }
 
-  if (role === "admin") {
+  if (role !== "observer") {
     await admin.from("profiles").update({ role }).eq("id", data.user.id);
   }
   revalidatePath("/admin");
@@ -57,7 +57,7 @@ export async function resetPassword(_prev: ResetState, formData: FormData): Prom
 export async function changeRole(formData: FormData) {
   const me = await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  const role = formData.get("role") === "admin" ? "admin" : "researcher";
+  const role = roleFrom(formData.get("role"));
   if (!id || id === me.id) return; // admins can't demote themselves, so there is always one admin
 
   await createAdminClient().from("profiles").update({ role }).eq("id", id);
