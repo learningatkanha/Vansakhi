@@ -138,3 +138,28 @@ export type RecentSighting = Awaited<ReturnType<typeof myRecentSightings>>[numbe
 
 // "suggested" = named by the observer, not yet confirmed by a teammate (that arrives in phase 5).
 export const STATUS_LABEL = { needs_id: "Needs ID", suggested: "Named", verified: "Verified" } as const;
+
+export type Suggestion = {
+  id: number;
+  member_id: string;
+  comment: string | null;
+  created_at: string;
+  species: { id: number; common_name: string | null; scientific_name: string; hindi_name: string | null } | null;
+  member: { name: string | null } | null;
+};
+
+/** Names suggested for a sighting (by anyone, the owner included), oldest first. */
+export async function suggestionsFor(observationId: string): Promise<Suggestion[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("identifications")
+    .select("id, member_id, comment, created_at, species:species_id (id, common_name, scientific_name, hindi_name), member:member_id (name)")
+    .eq("observation_id", observationId)
+    .eq("source", "suggestion")
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.error("suggestions:", error.message);
+    return [];
+  }
+  return data as unknown as Suggestion[];
+}

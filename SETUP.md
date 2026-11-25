@@ -97,6 +97,8 @@ and **Run**, before the new version of the app goes live. Run each file once, in
 - `0007_admin_powers.sql` (admin): admins can read and delete every journal entry (private ones too) and
   any comment, and can block members. A blocked member can't sign in or see anything; their work stays.
 - `0008_observer_role.sql` (roles): adds the Observer role (the new default) next to Researcher and Admin.
+- `0009_admin_delete_suggestions.sql` (name suggestions): marks suggestions apart from naming history and lets
+  the admin delete anyone's suggestion. Safe to run again.
 
 ## Later phases
 

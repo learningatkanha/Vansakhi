@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentMember } from "@/lib/auth";
-import { getObservation } from "@/lib/observations";
+import { getObservation, suggestionsFor } from "@/lib/observations";
 import { formatWhen } from "@/lib/media";
 import { monthOf, timeOfDayOf } from "@/lib/when";
 import { StatusBadge } from "@/components/observation-card";
@@ -9,6 +9,8 @@ import { entriesForSighting, myRecentEntries } from "@/lib/journal";
 import { linkEntry, unlinkEntry } from "../../journal/actions";
 import { Gallery } from "./gallery";
 import { DeleteButton } from "./delete-button";
+import { SuggestForm } from "./suggest-form";
+import { acceptSuggestion, deleteSuggestion } from "./actions";
 
 function MiniMap({ lat, lng }: { lat: number; lng: number }) {
   const d = 0.02;
@@ -36,7 +38,11 @@ export default async function ObservationPage({ params, searchParams }: PageProp
   const { saved, links } = await searchParams;
   const [member, obs] = await Promise.all([getCurrentMember(), getObservation(id)]);
   if (!obs) notFound();
-  const [entries, myEntries] = await Promise.all([entriesForSighting(obs.id), myRecentEntries(member.id)]);
+  const [entries, myEntries, suggestions] = await Promise.all([
+    entriesForSighting(obs.id),
+    myRecentEntries(member.id),
+    suggestionsFor(obs.id),
+  ]);
   const linkable = myEntries.filter((e) => !entries.some((x) => x.id === e.id));
   const writeHref = `/journal/new?obs=${obs.id}`;
 
@@ -50,6 +56,7 @@ export default async function ObservationPage({ params, searchParams }: PageProp
     ["Weather", obs.weather],
   ].filter(([, v]) => v);
   const mine = obs.observer_id === member.id;
+  const admin = member.role === "admin";
 
   return (
     <div className="grid gap-8 lg:grid-cols-[3fr_2fr]">
@@ -188,9 +195,66 @@ export default async function ObservationPage({ params, searchParams }: PageProp
           </div>
         </section>
 
-        <p className="rounded-xl bg-wash p-4 text-sm text-muted">
-          Team identification (Agree / Suggest another) arrives in phase 5.
-        </p>
+        <section className="rounded-xl border border-line bg-paper p-4 text-sm">
+          <h2 className="font-medium">Name suggestions</h2>
+          {suggestions.length === 0 && (
+            <p className="mt-1 text-muted">
+              {mine
+                ? "No suggestions yet. Not sure what it is? Suggest a name and a researcher can check it."
+                : "No suggestions yet. Know what it is? Suggest a name."}
+            </p>
+          )}
+          {suggestions.length > 0 && (
+            <ul className="mt-2 divide-y divide-line">
+              {suggestions.map((sg) => {
+                const current = sg.species?.id === obs.species?.id;
+                const theirs = sg.member_id === member.id;
+                return (
+                  <li key={sg.id} className="py-2">
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">
+                          {sg.species?.common_name ?? sg.species?.scientific_name ?? "Unknown species"}
+                          {current && <span className="ml-2 text-xs font-medium text-forest-700">✓ Current name</span>}
+                        </p>
+                        {sg.species?.common_name && <p className="text-xs italic text-muted">{sg.species.scientific_name}</p>}
+                        {sg.comment && <p className="mt-0.5">&ldquo;{sg.comment}&rdquo;</p>}
+                        <p className="mt-0.5 text-xs text-muted">
+                          suggested by {theirs ? "you" : (sg.member?.name ?? "a teammate")} · {dateLabel(sg.created_at.slice(0, 10))}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        {mine && !current && (
+                          <form action={acceptSuggestion}>
+                            <input type="hidden" name="id" value={sg.id} />
+                            <button
+                              type="submit"
+                              className="h-8 rounded-full bg-forest-600 px-3 text-xs font-medium text-white hover:bg-forest-700"
+                            >
+                              Accept
+                            </button>
+                          </form>
+                        )}
+                        {(theirs || admin) && (
+                          <form action={deleteSuggestion}>
+                            <input type="hidden" name="id" value={sg.id} />
+                            <input type="hidden" name="observationId" value={obs.id} />
+                            <button type="submit" className="text-xs text-muted hover:text-red-700 hover:underline">
+                              {theirs ? "Withdraw" : "Delete"}
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div className="mt-3 border-t border-line pt-3">
+            <SuggestForm observationId={obs.id} own={mine} />
+          </div>
+        </section>
 
         <div className="flex items-center gap-4 text-sm">
           <Link href="/" className="text-forest-700 hover:underline">
