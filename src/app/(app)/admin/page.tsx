@@ -6,6 +6,7 @@ import { changeRole } from "./actions";
 import { InviteForm } from "./invite-form";
 import { ResetPasswordButton } from "./reset-button";
 import { BlockButton } from "./block-button";
+import { RemoveButton } from "./remove-button";
 
 export default async function AdminPage() {
   const me = await requireAdmin();
@@ -13,6 +14,7 @@ export default async function AdminPage() {
   const { data: members } = await supabase
     .from("profiles")
     .select("id, email, name, role, created_at, blocked_at")
+    .is("removed_at", null)
     .order("created_at");
 
   return (
@@ -63,6 +65,7 @@ export default async function AdminPage() {
                     </button>
                   </form>
                   <BlockButton id={m.id} email={m.email} blocked={Boolean(m.blocked_at)} />
+                  {m.id !== me.id && <RemoveButton id={m.id} label={m.name ?? m.email} />}
                   </div>
                 )}
               </li>

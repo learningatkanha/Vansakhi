@@ -20,7 +20,7 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
   const admin = createAdminClient();
 
   // Someone added before who has never signed in (e.g. their invitation email failed) can be added again.
-  const { data: existing } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
+  const { data: existing } = await admin.from("profiles").select("id").eq("email", email).is("removed_at", null).maybeSingle();
   if (existing) {
     const { data: u } = await admin.auth.admin.getUserById(existing.id);
     if (u.user?.last_sign_in_at) return { error: "That person is already on the team." };
@@ -117,6 +117,42 @@ export async function setBlocked(_prev: BlockState, formData: FormData): Promise
   if (error) {
     console.error("block member (profile):", error.message);
     return { error: "Their login was changed, but the team list could not be updated. Please try again." };
+  }
+  revalidatePath("/admin");
+  return {};
+}
+
+export type RemoveState = { error?: string };
+
+/**
+ * Removes a member for good: their login is deleted (they can never sign in again and their email can be
+ * invited afresh), but their profile stays, renamed "Name (former member)", so all their work stays.
+ * Needs database update 0010 (before it, deleting a login deleted everything they added).
+ */
+export async function removeMember(_prev: RemoveState, formData: FormData): Promise<RemoveState> {
+  const me = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Missing member." };
+  if (id === me.id) return { error: "You can't remove yourself." };
+
+  const admin = createAdminClient();
+  const { data: profile } = await admin.from("profiles").select("name, email, removed_at").eq("id", id).maybeSingle();
+  if (!profile || profile.removed_at) return { error: "That person is not on the team." };
+
+  // Keep the profile (and so their work) but mark it, and free their email for a fresh invitation later.
+  const label = `${profile.name?.trim() || profile.email.split("@")[0]} (former member)`;
+  const { error: profileError } = await admin
+    .from("profiles")
+    .update({ name: label, email: `removed-${id}@former.member`, removed_at: new Date().toISOString(), blocked_at: new Date().toISOString() })
+    .eq("id", id);
+  if (profileError) {
+    console.error("remove member (profile):", profileError.message);
+    return { error: "Could not remove them. Has database update 0010 been run in Supabase?" };
+  }
+  const { error } = await admin.auth.admin.deleteUser(id);
+  if (error) {
+    console.error("remove member (login):", error.message);
+    return { error: "They are blocked and marked as a former member, but their login could not be deleted. Please try again." };
   }
   revalidatePath("/admin");
   return {};

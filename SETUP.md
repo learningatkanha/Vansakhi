@@ -116,6 +116,8 @@ and **Run**, before the new version of the app goes live. Run each file once, in
 - `0008_observer_role.sql` (roles): adds the Observer role (the new default) next to Researcher and Admin.
 - `0009_admin_delete_suggestions.sql` (name suggestions): marks suggestions apart from naming history and lets
   the admin delete anyone's suggestion. Safe to run again.
+- `0010_remove_members.sql` (removing people): deleting someone's login no longer deletes their work; the
+  Admin page's Remove keeps it as "Name (former member)". Safe to run again.
 
 ## Later phases
 
