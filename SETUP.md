@@ -118,6 +118,8 @@ and **Run**, before the new version of the app goes live. Run each file once, in
   the admin delete anyone's suggestion. Safe to run again.
 - `0010_remove_members.sql` (removing people): deleting someone's login no longer deletes their work; the
   Admin page's Remove keeps it as "Name (former member)". Safe to run again.
+- `0011_review_and_verify.sql` (review): four naming states (Needs ID, Named, Self-confirmed, Verified),
+  who verified and when, and the rules that only researchers/admins can verify.
 
 ## Later phases
 

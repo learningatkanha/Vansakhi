@@ -10,7 +10,9 @@ import { linkEntry, unlinkEntry } from "../../journal/actions";
 import { Gallery } from "./gallery";
 import { DeleteButton } from "./delete-button";
 import { SuggestForm } from "./suggest-form";
-import { acceptSuggestion, deleteSuggestion } from "./actions";
+import { acceptSuggestion, deleteSuggestion, markSure } from "./actions";
+import { ReviewBox } from "./review-box";
+import { isReviewerRole } from "@/lib/id-status";
 
 function MiniMap({ lat, lng }: { lat: number; lng: number }) {
   const d = 0.02;
@@ -57,6 +59,8 @@ export default async function ObservationPage({ params, searchParams }: PageProp
   ].filter(([, v]) => v);
   const mine = obs.observer_id === member.id;
   const admin = member.role === "admin";
+  const reviewer = isReviewerRole(member.role);
+  const named = obs.species !== null;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[3fr_2fr]">
@@ -89,8 +93,22 @@ export default async function ObservationPage({ params, searchParams }: PageProp
           <h1 className="text-2xl font-semibold">{obs.title}</h1>
           {obs.species && <p className="italic text-muted">{obs.species.scientific_name}</p>}
           {obs.species?.hindi_name && <p className="text-sm text-muted">{obs.species.hindi_name}</p>}
-          <div className="mt-2">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
             <StatusBadge status={obs.id_status} />
+            {obs.id_status === "verified" && (
+              <span className="text-xs text-muted">
+                Verified by {obs.verifier?.name ?? "a researcher"}
+                {obs.verified_at ? ` · ${dateLabel(obs.verified_at.slice(0, 10))}` : ""}
+              </span>
+            )}
+            {mine && !reviewer && named && obs.id_status === "suggested" && (
+              <form action={markSure}>
+                <input type="hidden" name="id" value={obs.id} />
+                <button type="submit" className="text-xs font-medium text-forest-700 hover:underline">
+                  I&apos;m sure now: mark Self-confirmed
+                </button>
+              </form>
+            )}
           </div>
         </div>
 
@@ -195,6 +213,8 @@ export default async function ObservationPage({ params, searchParams }: PageProp
           </div>
         </section>
 
+        {reviewer && <ReviewBox id={obs.id} status={obs.id_status} named={named} />}
+
         <section className="rounded-xl border border-line bg-paper p-4 text-sm">
           <h2 className="font-medium">Name suggestions</h2>
           {suggestions.length === 0 && (
@@ -224,16 +244,43 @@ export default async function ObservationPage({ params, searchParams }: PageProp
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1">
-                        {mine && !current && (
+                        {reviewer && !(current && obs.id_status === "verified") && (
                           <form action={acceptSuggestion}>
                             <input type="hidden" name="id" value={sg.id} />
+                            <input type="hidden" name="mode" value="verify" />
                             <button
                               type="submit"
                               className="h-8 rounded-full bg-forest-600 px-3 text-xs font-medium text-white hover:bg-forest-700"
                             >
-                              Accept
+                              Accept &amp; verify
                             </button>
                           </form>
+                        )}
+                        {mine && !reviewer && !current && (
+                          <>
+                            <form action={acceptSuggestion}>
+                              <input type="hidden" name="id" value={sg.id} />
+                              <input type="hidden" name="mode" value="sure" />
+                              <button
+                                type="submit"
+                                title="Use this name; you're sure (Self-confirmed)"
+                                className="h-8 rounded-full bg-forest-600 px-3 text-xs font-medium text-white hover:bg-forest-700"
+                              >
+                                Accept · I&apos;m sure
+                              </button>
+                            </form>
+                            <form action={acceptSuggestion}>
+                              <input type="hidden" name="id" value={sg.id} />
+                              <input type="hidden" name="mode" value="named" />
+                              <button
+                                type="submit"
+                                title="Use this name, but let a researcher check it (Named)"
+                                className="text-xs font-medium text-forest-700 hover:underline"
+                              >
+                                Accept, not sure
+                              </button>
+                            </form>
+                          </>
                         )}
                         {(theirs || admin) && (
                           <form action={deleteSuggestion}>

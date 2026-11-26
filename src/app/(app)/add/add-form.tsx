@@ -5,6 +5,7 @@ import { useActionState, useRef, useState } from "react";
 import { Button, Card, Input, Label } from "@/components/ui";
 import { PlaceSearch } from "@/components/place-search";
 import { SpeciesSearch } from "@/components/species-search";
+import { SureChoice } from "@/components/sure-choice";
 import { MediaUploader, type UploadItem } from "@/components/media-uploader";
 import type { SpeciesMatch } from "@/lib/gbif";
 import type { PlaceMatch } from "@/lib/places";
@@ -30,6 +31,7 @@ export type ObservationInitial = {
   id: string;
   species: SpeciesMatch | null;
   speciesGuess: string;
+  sure: boolean | null; // null = the sighting has no name yet
   observedAt: string; // ISO
   place: PlaceMatch | null;
   count: number | null;
@@ -38,11 +40,20 @@ export type ObservationInitial = {
   media: UploadItem[];
 };
 
-export function AddForm({ initial, startSpecies }: { initial?: ObservationInitial; startSpecies?: SpeciesMatch | null }) {
+export function AddForm({
+  initial,
+  startSpecies,
+  reviewer = false,
+}: {
+  initial?: ObservationInitial;
+  startSpecies?: SpeciesMatch | null;
+  reviewer?: boolean;
+}) {
   const [state, action, pending] = useActionState<SaveState, FormData>(saveObservation, {});
   const [media, setMedia] = useState<UploadItem[]>(initial?.media ?? []);
   const [species, setSpecies] = useState<SpeciesMatch | null>(initial?.species ?? startSpecies ?? null);
   const [speciesGuess, setSpeciesGuess] = useState(initial?.speciesGuess ?? "");
+  const [sure, setSure] = useState<boolean | null>(initial?.sure ?? null);
   const [place, setPlace] = useState<PlaceMatch | null>(initial?.place ?? null);
   const [placeNote, setPlaceNote] = useState<string | null>(null);
   const [when, setWhen] = useState(() => toLocalInput(initial ? new Date(initial.observedAt) : new Date()));
@@ -84,6 +95,7 @@ export function AddForm({ initial, startSpecies }: { initial?: ObservationInitia
     id: initial?.id,
     species,
     speciesGuess,
+    sure: sure === true,
     observedAt: whenIso,
     place,
     count: count ? Number(count) : null,
@@ -104,8 +116,13 @@ export function AddForm({ initial, startSpecies }: { initial?: ObservationInitia
           <Label htmlFor="species">Species</Label>
           <SpeciesSearch value={species} onSelect={setSpecies} onQueryChange={setSpeciesGuess} initialQuery={initial?.speciesGuess} />
           <p className="mt-1.5 text-xs text-muted">
-            Not sure? Leave it, or type what you think it is, and the team can help identify it.
+            No idea? Leave it, or type what you think it is, and the team can help identify it.
           </p>
+          {species && (
+            <div className="mt-3">
+              <SureChoice value={sure} onChange={setSure} reviewer={reviewer} />
+            </div>
+          )}
         </div>
 
         <div>
@@ -197,7 +214,10 @@ export function AddForm({ initial, startSpecies }: { initial?: ObservationInitia
         {state.error && <p className="text-sm text-red-700">{state.error}</p>}
         {failed && <p className="text-sm text-amber-800">Some uploads failed. Remove them (✕) or try adding them again.</p>}
 
-        <Button type="submit" disabled={pending || uploading} className="w-full">
+        {species && sure === null && (
+          <p className="text-sm text-amber-800">Please choose &ldquo;I&apos;m sure&rdquo; or &ldquo;Not sure&rdquo; for the species.</p>
+        )}
+        <Button type="submit" disabled={pending || uploading || (species !== null && sure === null)} className="w-full">
           {uploading ? "Waiting for uploads…" : pending ? "Saving…" : initial ? "Save changes" : "Save observation"}
         </Button>
         {initial && (

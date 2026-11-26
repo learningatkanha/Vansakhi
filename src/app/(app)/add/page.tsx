@@ -1,6 +1,8 @@
 import { PageHeader } from "@/components/ui";
 import type { SpeciesMatch } from "@/lib/gbif";
 import { AddForm } from "./add-form";
+import { getCurrentMember } from "@/lib/auth";
+import { isReviewerRole } from "@/lib/id-status";
 
 /** A species handed over from the Explore page (?species=<json>), checked before use. */
 function parseSpecies(raw: string | string[] | undefined): SpeciesMatch | null {
@@ -16,11 +18,11 @@ function parseSpecies(raw: string | string[] | undefined): SpeciesMatch | null {
 }
 
 export default async function AddPage({ searchParams }: PageProps<"/add">) {
-  const { species } = await searchParams;
+  const [{ species }, member] = await Promise.all([searchParams, getCurrentMember()]);
   return (
     <>
       <PageHeader title="Add observation" />
-      <AddForm startSpecies={parseSpecies(species)} />
+      <AddForm startSpecies={parseSpecies(species)} reviewer={isReviewerRole(member.role)} />
     </>
   );
 }

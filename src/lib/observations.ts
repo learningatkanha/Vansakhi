@@ -2,10 +2,12 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { viewUrls } from "@/lib/media";
 import { byNearness } from "@/lib/journal-doc";
+import type { IdStatus } from "@/lib/id-status";
 
 const FIELDS = `id, observer_id, observed_at, place_name, lat, lng, count, notes, life_stage, sex, behaviour, habitat, weather, id_status, species_guess,
   species:species_id (id, gbif_key, common_name, scientific_name, hindi_name, group_name),
   observer:observer_id (name),
+  verified_at, verifier:verified_by (name),
   observation_media (position, media:media_id (id, file_key, media_type))`;
 
 type Row = {
@@ -22,7 +24,9 @@ type Row = {
   behaviour: string | null;
   habitat: string | null;
   weather: string | null;
-  id_status: "needs_id" | "suggested" | "verified";
+  id_status: IdStatus;
+  verified_at: string | null;
+  verifier: { name: string | null } | null;
   species_guess: string | null;
   species: { id: number; gbif_key: number | null; common_name: string | null; scientific_name: string; hindi_name: string | null; group_name: string | null } | null;
   observer: { name: string | null } | null;
@@ -45,13 +49,15 @@ async function withMedia(row: Row): Promise<Observation> {
 }
 
 export async function listObservations(
-  filter: { needsId?: boolean; observerId?: string; between?: { from: string; to: string }; ids?: string[] },
+  filter: { needsId?: boolean; status?: IdStatus; observerId?: string; between?: { from: string; to: string }; ids?: string[]; notVerified?: boolean },
   limit = 48,
 ) {
   if (filter.ids && filter.ids.length === 0) return [];
   const supabase = await createClient();
   let query = supabase.from("observations").select(FIELDS).order("observed_at", { ascending: false }).limit(limit);
   if (filter.needsId) query = query.eq("id_status", "needs_id");
+  if (filter.status) query = query.eq("id_status", filter.status);
+  if (filter.notVerified) query = query.neq("id_status", "verified");
   if (filter.observerId) query = query.eq("observer_id", filter.observerId);
   if (filter.between) query = query.gte("observed_at", filter.between.from).lt("observed_at", filter.between.to);
   if (filter.ids) query = query.in("id", filter.ids);
@@ -136,8 +142,7 @@ export async function myRecentSightings(memberId: string, limit = 40) {
 
 export type RecentSighting = Awaited<ReturnType<typeof myRecentSightings>>[number];
 
-// "suggested" = named by the observer, not yet confirmed by a teammate (that arrives in phase 5).
-export const STATUS_LABEL = { needs_id: "Needs ID", suggested: "Named", verified: "Verified" } as const;
+export { STATUS_LABEL } from "@/lib/id-status";
 
 export type Suggestion = {
   id: number;
@@ -162,4 +167,43 @@ export async function suggestionsFor(observationId: string): Promise<Suggestion[
     return [];
   }
   return data as unknown as Suggestion[];
+}
+
+/** Sightings with at least one name suggestion. */
+async function idsWithSuggestions(): Promise<string[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("identifications").select("observation_id").eq("source", "suggestion").limit(2000);
+  return [...new Set((data ?? []).map((r: { observation_id: string }) => r.observation_id))];
+}
+
+export type ReviewTab = "needs-id" | "named" | "suggestions";
+
+/** The researchers' Review page: sightings waiting for an expert eye (Self-confirmed and Verified ones aren't listed). */
+export async function reviewList(tab: ReviewTab, limit = 60) {
+  if (tab === "needs-id") return listObservations({ status: "needs_id" }, limit);
+  if (tab === "named") return listObservations({ status: "suggested" }, limit);
+  return listObservations({ ids: await idsWithSuggestions(), notVerified: true }, limit);
+}
+
+/** How many sightings wait in each Review tab. */
+export async function reviewCounts(): Promise<Record<ReviewTab, number>> {
+  const supabase = await createClient();
+  const count = async (status: IdStatus) => {
+    const { count: n } = await supabase.from("observations").select("id", { count: "exact", head: true }).eq("id_status", status);
+    return n ?? 0;
+  };
+  const ids = await idsWithSuggestions();
+  const [needsId, named, suggestions] = await Promise.all([
+    count("needs_id"),
+    count("suggested"),
+    ids.length
+      ? supabase
+          .from("observations")
+          .select("id", { count: "exact", head: true })
+          .in("id", ids.slice(0, 500))
+          .neq("id_status", "verified")
+          .then((r) => r.count ?? 0)
+      : Promise.resolve(0),
+  ]);
+  return { "needs-id": needsId, named, suggestions };
 }

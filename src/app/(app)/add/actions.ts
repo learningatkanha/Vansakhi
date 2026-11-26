@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { speciesRowId } from "@/lib/species-rows";
+import { isReviewerRole, statusAfterNaming, type IdStatus } from "@/lib/id-status";
 import { sightingTitle } from "@/lib/observations";
 
 type MediaInput = {
@@ -22,6 +23,7 @@ export type ObservationInput = {
   id?: string; // set when editing an existing sighting
   species: { gbifKey: number; scientificName: string; commonName: string | null; hindiName: string | null; group: string | null } | null;
   speciesGuess: string;
+  sure: boolean; // "I'm sure" (Self-confirmed, or Verified for researchers) vs "Not sure" (Named)
   observedAt: string; // ISO
   place: { name: string; lat: number; lng: number } | null;
   count: number | null;
@@ -79,25 +81,36 @@ export async function nameSighting(_prev: NameState, formData: FormData): Promis
     return { error: "Please choose a species first." };
   }
   if (!/^[0-9a-f-]{36}$/i.test(observationId)) return { error: "Please choose one of your sightings." };
+  const sureValue = formData.get("sure");
+  if (sureValue !== "1" && sureValue !== "0") return { error: "Please choose \"I'm sure\" or \"Not sure\"." };
 
   const supabase = await createClient();
-  const { data: obs } = await supabase.from("observations").select("observer_id, species_id").eq("id", observationId).maybeSingle();
+  const { data: obs } = await supabase.from("observations").select("observer_id, species_id, id_status").eq("id", observationId).maybeSingle();
   if (!obs || obs.observer_id !== member.id) return { error: "You can only name your own sightings." };
 
   const speciesId = await speciesRowId(supabase, species);
   if (!speciesId) return { error: "Could not save the species. Please try again." };
 
-  if (obs.species_id !== speciesId) {
+  const speciesChanged = obs.species_id !== speciesId;
+  const idStatus = statusAfterNaming({
+    named: true,
+    sure: sureValue === "1",
+    reviewer: isReviewerRole(member.role),
+    current: obs.id_status as IdStatus,
+    speciesChanged,
+  });
+  if (speciesChanged || idStatus !== obs.id_status) {
     const oldTitle = await titleNow(supabase, observationId);
     const { error } = await supabase
       .from("observations")
-      .update({ species_id: speciesId, species_guess: null, id_status: "suggested" })
+      .update({ species_id: speciesId, species_guess: null, id_status: idStatus })
       .eq("id", observationId);
     if (error) {
       console.error("name sighting:", error.message);
       return { error: "Could not save the species. Please try again." };
     }
-    await supabase.from("identifications").insert({ observation_id: observationId, member_id: member.id, species_id: speciesId, source: "manual" });
+    if (speciesChanged)
+      await supabase.from("identifications").insert({ observation_id: observationId, member_id: member.id, species_id: speciesId, source: "manual" });
     await retitleEntries(supabase, member.id, observationId, oldTitle, await titleNow(supabase, observationId));
   }
 
@@ -127,15 +140,15 @@ export async function saveObservation(_prev: SaveState, formData: FormData): Pro
   const supabase = await createClient();
 
   // When editing: load the sighting as it is now. Row-level security only lets you change your own.
-  let existing: { species_id: number | null; mediaIds: string[] } | null = null;
+  let existing: { species_id: number | null; id_status: IdStatus; mediaIds: string[] } | null = null;
   if (input.id) {
     const { data } = await supabase
       .from("observations")
-      .select("species_id, observer_id, observation_media (media_id)")
+      .select("species_id, id_status, observer_id, observation_media (media_id)")
       .eq("id", input.id)
       .maybeSingle();
     if (!data || data.observer_id !== member.id) return { error: "You can only edit your own sightings." };
-    existing = { species_id: data.species_id, mediaIds: (data.observation_media ?? []).map((om) => om.media_id) };
+    existing = { species_id: data.species_id, id_status: data.id_status as IdStatus, mediaIds: (data.observation_media ?? []).map((om) => om.media_id) };
     if (input.media.some((m) => m.mediaId && !existing!.mediaIds.includes(m.mediaId)))
       return { error: "One of the photos doesn't belong to this sighting." };
   }
@@ -158,8 +171,13 @@ export async function saveObservation(_prev: SaveState, formData: FormData): Pro
     behaviour: clip(input.details.behaviour, 500),
     habitat: clip(input.details.habitat, 500),
     weather: clip(input.details.weather, 200),
-    // Keep a team-verified status unless the species itself was changed.
-    ...(speciesChanged ? { id_status: speciesId ? ("suggested" as const) : ("needs_id" as const) } : {}),
+    id_status: statusAfterNaming({
+      named: speciesId !== null,
+      sure: input.sure === true,
+      reviewer: isReviewerRole(member.role),
+      current: existing?.id_status ?? null,
+      speciesChanged,
+    }),
   };
 
   const { data: obs, error } = input.id

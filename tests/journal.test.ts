@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { statusAfterNaming } from "../src/lib/id-status.ts";
 import { hasHevcMarker } from "../src/lib/video-check.ts";
 import { byNearness, cleanDoc, docText, istDateOf, istDayRange, mediaIdsIn, parseTags, searchTerm, withMediaUrls } from "../src/lib/journal-doc.ts";
 
@@ -121,4 +122,17 @@ test("hasHevcMarker spots HEVC video tracks and ignores H.264 ones", () => {
   assert.equal(hasHevcMarker(box("hev1")), true);
   assert.equal(hasHevcMarker(box("avc1")), false);
   assert.equal(hasHevcMarker(new Uint8Array([0x68, 0x76, 0x63])), false); // cut short: "hvc"
+});
+
+test("statusAfterNaming follows the four-state rules", () => {
+  const base = { named: true, sure: true, reviewer: false, current: null, speciesChanged: true } as const;
+  assert.equal(statusAfterNaming({ ...base, named: false }), "needs_id");
+  assert.equal(statusAfterNaming({ ...base, sure: false }), "suggested");
+  assert.equal(statusAfterNaming(base), "self_confirmed");
+  assert.equal(statusAfterNaming({ ...base, reviewer: true }), "verified");
+  // A verified sighting keeps its badge when only notes change...
+  assert.equal(statusAfterNaming({ ...base, current: "verified", speciesChanged: false }), "verified");
+  // ...but not when an observer changes the name, or says they're no longer sure.
+  assert.equal(statusAfterNaming({ ...base, current: "verified", speciesChanged: true }), "self_confirmed");
+  assert.equal(statusAfterNaming({ ...base, current: "verified", speciesChanged: false, sure: false }), "suggested");
 });

@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/ui";
 import { getCurrentMember } from "@/lib/auth";
 import { getObservation } from "@/lib/observations";
 import { AddForm } from "../../../add/add-form";
+import { isReviewerRole } from "@/lib/id-status";
 
 export default async function EditObservationPage({ params }: PageProps<"/observations/[id]/edit">) {
   const { id } = await params;
@@ -21,10 +22,12 @@ export default async function EditObservationPage({ params }: PageProps<"/observ
     <>
       <PageHeader title="Edit observation" />
       <AddForm
+        reviewer={isReviewerRole(member.role)}
         initial={{
           id: obs.id,
           species,
           speciesGuess: species ? "" : (obs.species_guess ?? s?.common_name ?? s?.scientific_name ?? ""),
+          sure: obs.id_status === "needs_id" ? null : obs.id_status === "self_confirmed" || obs.id_status === "verified",
           observedAt: obs.observed_at,
           place: obs.place_name && obs.lat !== null && obs.lng !== null ? { name: obs.place_name, lat: obs.lat, lng: obs.lng } : null,
           count: obs.count,

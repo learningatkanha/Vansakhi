@@ -10,11 +10,13 @@ const LINKS = [
   { href: "/stats", label: "Stats" },
 ];
 
-export function NavLinks() {
+/** `reviewWaiting` is set (a number) only for researchers and admins: it adds the Review link. */
+export function NavLinks({ reviewWaiting = null }: { reviewWaiting?: number | null }) {
   const pathname = usePathname();
+  const links = reviewWaiting === null ? LINKS : [...LINKS, { href: "/review", label: "Review" }];
   return (
     <nav className="flex h-full items-stretch gap-1 sm:gap-4">
-      {LINKS.map(({ href, label }) => {
+      {links.map(({ href, label }) => {
         const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
         return (
           <Link
@@ -25,6 +27,9 @@ export function NavLinks() {
             }`}
           >
             {label}
+            {href === "/review" && reviewWaiting ? (
+              <span className="ml-1 rounded-full bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-900">{reviewWaiting}</span>
+            ) : null}
           </Link>
         );
       })}

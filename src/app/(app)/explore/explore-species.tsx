@@ -5,13 +5,15 @@ import { useActionState, useState } from "react";
 import { SpeciesSearch } from "@/components/species-search";
 import { Button } from "@/components/ui";
 import type { SpeciesMatch } from "@/lib/gbif";
+import { SureChoice } from "@/components/sure-choice";
 import { nameSighting, type NameState } from "../add/actions";
 
 type Sighting = { id: string; title: string; dateLabel: string; place: string | null; named: boolean };
 
 /** Look up a species, then use it: name one of your sightings, or record a new one. */
-export function ExploreSpecies({ sightings }: { sightings: Sighting[] }) {
+export function ExploreSpecies({ sightings, reviewer = false }: { sightings: Sighting[]; reviewer?: boolean }) {
   const [species, setSpecies] = useState<SpeciesMatch | null>(null);
+  const [sure, setSure] = useState<boolean | null>(null);
   const [state, action, pending] = useActionState<NameState, FormData>(nameSighting, {});
   const name = species ? (species.commonName ?? species.scientificName) : "";
 
@@ -51,11 +53,12 @@ export function ExploreSpecies({ sightings }: { sightings: Sighting[] }) {
                     </option>
                   ))}
                 </select>
-                <Button type="submit" disabled={pending} className="h-9 shrink-0 px-4">
+                <Button type="submit" disabled={pending || sure === null} className="h-9 shrink-0 px-4">
                   {pending ? "Saving…" : "Save"}
                 </Button>
               </div>
               <p className="text-xs text-muted">Sightings without a name are listed first.</p>
+              <SureChoice name="sure" value={sure} onChange={setSure} reviewer={reviewer} />
               {state.error && <p className="text-red-700">{state.error}</p>}
             </form>
           )}

@@ -1,19 +1,18 @@
 import Link from "next/link";
 import type { Observation } from "@/lib/observations";
-import { STATUS_LABEL } from "@/lib/observations";
+import { STATUS_HINT, STATUS_LABEL, type IdStatus } from "@/lib/id-status";
 import { formatWhen } from "@/lib/media";
 
-export function StatusBadge({ status }: { status: Observation["id_status"] }) {
+export function StatusBadge({ status }: { status: IdStatus }) {
   const look = {
-    verified: "border-forest-600 bg-forest-50 text-forest-800",
+    verified: "border-forest-700 bg-forest-600 text-white",
+    self_confirmed: "border-forest-600 bg-forest-50 text-forest-800",
     suggested: "border-line bg-paper text-ink",
     needs_id: "border-amber-500 bg-amber-50 text-amber-900",
   }[status];
   return (
-    <span
-      title={status === "suggested" ? "Named by the observer; not yet confirmed by the team" : undefined}
-      className={`inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${look}`}
-    >
+    <span title={STATUS_HINT[status]} className={`inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${look}`}>
+      {status === "verified" ? "✓ " : ""}
       {STATUS_LABEL[status]}
     </span>
   );
