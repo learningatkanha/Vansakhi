@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/env";
 import { passwordProblem, temporaryPassword } from "@/lib/passwords";
 
-export type InviteState = { ok?: string; password?: string; error?: string };
+export type InviteState = { ok?: string; password?: string; error?: string; emailed?: boolean };
 
 export async function inviteMember(_prev: InviteState, formData: FormData): Promise<InviteState> {
   await requireAdmin();
@@ -14,26 +14,55 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
   const name = String(formData.get("name") ?? "").trim();
   const role = roleFrom(formData.get("role"));
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Please enter a valid email address." };
-
-  // The admin adds the person directly with a temporary password and passes it on;
-  // they change it after signing in. No email is sent, so Supabase's email limit doesn't matter.
-  const password = temporaryPassword();
+  const sendEmail = formData.get("sendEmail") === "on";
+  // Without a name they'd be asked for one first and could miss choosing a password.
+  if (sendEmail && !name) return { error: "Please add their name, so the invitation can greet them." };
   const admin = createAdminClient();
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { name },
-  });
-  if (error) {
-    console.error("add member:", error.message);
-    return { error: /already|exists|registered/i.test(error.message) ? "That person is already on the team." : "Could not add them." };
+
+  // Someone added before who has never signed in (e.g. their invitation email failed) can be added again.
+  const { data: existing } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
+  if (existing) {
+    const { data: u } = await admin.auth.admin.getUserById(existing.id);
+    if (u.user?.last_sign_in_at) return { error: "That person is already on the team." };
   }
 
-  if (role !== "observer") {
-    await admin.from("profiles").update({ role }).eq("id", data.user.id);
+  let userId: string;
+  let password: string | undefined;
+  if (sendEmail) {
+    // Supabase emails them a link (sent through the Gmail account set up in Supabase -> SMTP).
+    // The link opens /auth/confirm, which signs them in and asks them to choose a password.
+    const { data, error } = await admin.auth.admin.inviteUserByEmail(email, { data: { name } });
+    if (error) {
+      console.error("invite member:", error.message);
+      return {
+        error:
+          "Could not send the invitation email. Check the email settings in Supabase, or untick \"Email them an invitation\" to get a temporary password instead.",
+      };
+    }
+    userId = data.user.id;
+  } else {
+    // The admin passes on a temporary password; they change it after signing in.
+    password = temporaryPassword();
+    if (existing) {
+      const { error } = await admin.auth.admin.updateUserById(existing.id, { password, email_confirm: true });
+      if (error) {
+        console.error("re-add member:", error.message);
+        return { error: "Could not add them." };
+      }
+      userId = existing.id;
+    } else {
+      const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { name } });
+      if (error) {
+        console.error("add member:", error.message);
+        return { error: /already|exists|registered/i.test(error.message) ? "That person is already on the team." : "Could not add them." };
+      }
+      userId = data.user.id;
+    }
   }
+
+  await admin.from("profiles").update({ role, ...(name ? { name } : {}) }).eq("id", userId);
   revalidatePath("/admin");
+  if (sendEmail) return { ok: `Invitation sent to ${email}. They'll get an email with a link to choose their password.`, emailed: true };
   return { ok: `Added ${email}. Send them the address ${siteUrl()}/login and this temporary password:`, password };
 }
 

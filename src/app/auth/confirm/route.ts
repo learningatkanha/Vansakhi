@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
   if (tokenHash && type) {
     const supabase = await createClient();
     const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
-    if (!error) return NextResponse.redirect(`${origin}/`);
+    // Invited people choose their own password first.
+    if (!error) return NextResponse.redirect(type === "invite" ? `${origin}/account?welcome=1` : `${origin}/`);
   }
   return NextResponse.redirect(`${origin}/login?error=link`);
 }

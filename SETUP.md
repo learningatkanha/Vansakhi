@@ -85,6 +85,23 @@ you've set up shows "Connected".
    - Supabase → Authentication → URL Configuration: Site URL, and Redirect URLs (`https://…vercel.app/**`)
    - Cloudflare R2 → bucket CORS policy → `AllowedOrigins`
 
+## Invitation emails from your Gmail
+
+The Admin page can email new people an invitation link (they choose their own password). Supabase sends it
+through your Gmail. One-time setup:
+
+1. **Gmail app password:** Google Account -> **Security** -> turn on **2-Step Verification** if it's off. Then
+   open https://myaccount.google.com/apppasswords, type the name `Vansakhi`, click **Create**, and copy the
+   16-letter password. (It only lets Supabase send email as you; it can't be used to sign in to your account.)
+2. **Supabase -> Authentication -> Emails -> SMTP Settings:** turn on **Enable custom SMTP** and fill in:
+   sender email `learningatkanha@gmail.com`, sender name `Vansakhi`, host `smtp.gmail.com`, port `465`,
+   username `learningatkanha@gmail.com`, password = the app password. **Save**.
+3. **Supabase -> Authentication -> URL Configuration:** Site URL must be `https://vansakhi.vercel.app`.
+4. **Supabase -> Authentication -> Emails -> Templates -> Invite user:** subject `You've been added to
+   Vansakhi`; message body = the contents of `supabase/email-templates/invite.html`. **Save**.
+
+Gmail sends up to about 500 emails a day, plenty for invitations.
+
 ## Database updates
 
 When a new file appears in `supabase/migrations/`, open Supabase → **SQL Editor**, paste the file's contents

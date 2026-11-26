@@ -1,0 +1,16 @@
+<!-- Supabase -> Authentication -> Emails -> Templates -> "Invite user".
+     Subject: You've been added to Vansakhi
+     Paste everything below into the message body (Source / HTML view). -->
+<div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1f2a1f;">
+  <h2 style="color: #2f5d34;">Welcome to Vansakhi</h2>
+  <p>You've been added to the team's field journal for Kanha: sightings, photos and journal entries, all in one place.</p>
+  <p>Click the button to sign in and choose your password:</p>
+  <p style="margin: 28px 0;">
+    <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite"
+       style="background: #2f5d34; color: #ffffff; padding: 12px 22px; border-radius: 999px; text-decoration: none; font-weight: bold;">
+      Join Vansakhi
+    </a>
+  </p>
+  <p style="font-size: 13px; color: #666;">The link works once and expires in 24 hours. If it has expired, ask the admin to invite you again.</p>
+  <p style="font-size: 13px; color: #666;">After that, sign in at {{ .SiteURL }}/login with this email address and your password.</p>
+</div>

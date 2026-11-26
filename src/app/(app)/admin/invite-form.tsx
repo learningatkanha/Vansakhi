@@ -13,7 +13,7 @@ export function InviteForm() {
         <Input id="invite-email" name="email" type="email" required placeholder="name@example.com" />
       </div>
       <div>
-        <Label htmlFor="invite-name">Name (optional)</Label>
+        <Label htmlFor="invite-name">Name</Label>
         <Input id="invite-name" name="name" placeholder="Ravi" />
       </div>
       <div>
@@ -24,14 +24,23 @@ export function InviteForm() {
           <option value="admin">Admin</option>
         </select>
       </div>
+      <label className="flex items-center gap-2 text-sm sm:col-span-4 sm:order-last">
+        <input type="checkbox" name="sendEmail" defaultChecked className="accent-forest-600" />
+        Email them an invitation (they choose their own password). Untick to get a temporary password to send yourself.
+      </label>
       <Button type="submit" disabled={pending}>
         {pending ? "Adding…" : "Add to team"}
       </Button>
       {state.ok && (
         <div className="rounded-lg bg-forest-50 p-3 text-sm sm:col-span-4">
           <p>{state.ok}</p>
-          <p className="mt-1 font-mono text-base font-semibold">{state.password}</p>
-          <p className="mt-1 text-xs text-muted">Shown once. They can change it under their account menu.</p>
+          {state.password && (
+            <>
+              <p className="mt-1 font-mono text-base font-semibold">{state.password}</p>
+              <p className="mt-1 text-xs text-muted">Shown once. They can change it under their account menu.</p>
+            </>
+          )}
+          {state.emailed && <p className="mt-1 text-xs text-muted">Not arrived in a few minutes? Ask them to check their spam folder.</p>}
         </div>
       )}
       {state.error && <p className="text-sm text-red-700 sm:col-span-4">{state.error}</p>}
