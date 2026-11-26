@@ -43,7 +43,16 @@ export function InviteForm() {
           {state.emailed && <p className="mt-1 text-xs text-muted">Not arrived in a few minutes? Ask them to check their spam folder.</p>}
         </div>
       )}
-      {state.error && <p className="text-sm text-red-700 sm:col-span-4">{state.error}</p>}
+      {state.error && (
+        <div className="text-sm text-red-700 sm:col-span-4">
+          <p>{state.error}</p>
+          {state.password && (
+            <p className="mt-1 text-forest-900">
+              Their temporary password: <span className="font-mono text-base font-semibold">{state.password}</span>
+            </p>
+          )}
+        </div>
+      )}
     </form>
   );
 }

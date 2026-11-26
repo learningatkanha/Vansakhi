@@ -60,8 +60,16 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
     }
   }
 
-  await admin.from("profiles").update({ role, ...(name ? { name } : {}) }).eq("id", userId);
+  const { error: roleError } = await admin.from("profiles").update({ role, ...(name ? { name } : {}) }).eq("id", userId);
   revalidatePath("/admin");
+  if (roleError) {
+    console.error("set role:", roleError.message);
+    const added = sendEmail ? `Invitation sent to ${email}, but` : `Added ${email}, but`;
+    return {
+      error: `${added} their role could not be set to ${role} (has database update 0008 been run in Supabase?). Change it in the team list once it has.`,
+      ...(password ? { password } : {}),
+    };
+  }
   if (sendEmail) return { ok: `Invitation sent to ${email}. They'll get an email with a link to choose their password.`, emailed: true };
   return { ok: `Added ${email}. Send them the address ${siteUrl()}/login and this temporary password:`, password };
 }
@@ -89,7 +97,8 @@ export async function changeRole(formData: FormData) {
   const role = roleFrom(formData.get("role"));
   if (!id || id === me.id) return; // admins can't demote themselves, so there is always one admin
 
-  await createAdminClient().from("profiles").update({ role }).eq("id", id);
+  const { error } = await createAdminClient().from("profiles").update({ role }).eq("id", id);
+  if (error) console.error("change role:", error.message, "(has database update 0008 been run?)");
   revalidatePath("/admin");
 }
 
