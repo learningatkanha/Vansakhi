@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { viewUrls } from "@/lib/media";
 import { byNearness } from "@/lib/journal-doc";
 import type { IdStatus } from "@/lib/id-status";
+import { CATEGORIES, GROUPS, NAMED_GROUPS, categoryOf, type Category } from "@/lib/categories";
 
 const FIELDS = `id, observer_id, observed_at, place_name, lat, lng, count, notes, life_stage, sex, behaviour, habitat, weather, id_status, species_guess,
   species:species_id (id, gbif_key, common_name, scientific_name, hindi_name, group_name),
@@ -49,12 +50,27 @@ async function withMedia(row: Row): Promise<Observation> {
 }
 
 export async function listObservations(
-  filter: { needsId?: boolean; status?: IdStatus; observerId?: string; between?: { from: string; to: string }; ids?: string[]; notVerified?: boolean },
+  filter: {
+    needsId?: boolean;
+    status?: IdStatus;
+    observerId?: string;
+    between?: { from: string; to: string };
+    ids?: string[];
+    notVerified?: boolean;
+    category?: Category;
+  },
   limit = 48,
 ) {
   if (filter.ids && filter.ids.length === 0) return [];
   const supabase = await createClient();
-  let query = supabase.from("observations").select(FIELDS).order("observed_at", { ascending: false }).limit(limit);
+  const byGroup = filter.category && filter.category !== "unnamed";
+  // To filter on the species' group, the species must be joined as required ("!inner").
+  const fields = byGroup ? FIELDS.replace("species:species_id (", "species:species_id!inner (") : FIELDS;
+  let query = supabase.from("observations").select(fields).order("observed_at", { ascending: false }).limit(limit);
+  if (filter.category === "unnamed") query = query.is("species_id", null);
+  else if (filter.category === "others")
+    query = query.or(`group_name.is.null,group_name.not.in.(${NAMED_GROUPS.join(",")})`, { referencedTable: "species" });
+  else if (filter.category) query = query.in("species.group_name", GROUPS[filter.category]);
   if (filter.needsId) query = query.eq("id_status", "needs_id");
   if (filter.status) query = query.eq("id_status", filter.status);
   if (filter.notVerified) query = query.neq("id_status", "verified");
@@ -206,4 +222,20 @@ export async function reviewCounts(): Promise<Record<ReviewTab, number>> {
       : Promise.resolve(0),
   ]);
   return { "needs-id": needsId, named, suggestions };
+}
+
+/** How many sightings are in each type tab (and in total), with the same person / Needs ID filter as the list. */
+export async function categoryCounts(filter: { needsId?: boolean; observerId?: string }) {
+  const supabase = await createClient();
+  let query = supabase.from("observations").select("species:species_id (group_name)").limit(10000);
+  if (filter.needsId) query = query.eq("id_status", "needs_id");
+  if (filter.observerId) query = query.eq("observer_id", filter.observerId);
+  const { data, error } = await query;
+  const counts = Object.fromEntries(CATEGORIES.map((c) => [c.key, 0])) as Record<Category, number>;
+  if (error) {
+    console.error("category counts:", error.message);
+    return { all: 0, ...counts };
+  }
+  for (const row of data as unknown as { species: { group_name: string | null } | null }[]) counts[categoryOf(row.species)]++;
+  return { all: data.length, ...counts };
 }

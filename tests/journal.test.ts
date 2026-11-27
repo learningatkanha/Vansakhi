@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { categoryOf } from "../src/lib/categories.ts";
 import { statusAfterNaming } from "../src/lib/id-status.ts";
 import { hasHevcMarker } from "../src/lib/video-check.ts";
 import { byNearness, cleanDoc, docText, istDateOf, istDayRange, mediaIdsIn, parseTags, searchTerm, withMediaUrls } from "../src/lib/journal-doc.ts";
@@ -135,4 +136,15 @@ test("statusAfterNaming follows the four-state rules", () => {
   // ...but not when an observer changes the name, or says they're no longer sure.
   assert.equal(statusAfterNaming({ ...base, current: "verified", speciesChanged: true }), "self_confirmed");
   assert.equal(statusAfterNaming({ ...base, current: "verified", speciesChanged: false, sure: false }), "suggested");
+});
+
+test("categoryOf sorts species into the type tabs", () => {
+  assert.equal(categoryOf(null), "unnamed");
+  assert.equal(categoryOf({ group_name: "Aves" }), "birds");
+  assert.equal(categoryOf({ group_name: "Squamata" }), "reptiles");
+  assert.equal(categoryOf({ group_name: "Arachnida" }), "arachnids");
+  assert.equal(categoryOf({ group_name: "Agaricomycetes" }), "fungi");
+  assert.equal(categoryOf({ group_name: "Magnoliopsida" }), "plants");
+  assert.equal(categoryOf({ group_name: "Gastropoda" }), "others"); // snails
+  assert.equal(categoryOf({ group_name: null }), "others");
 });
