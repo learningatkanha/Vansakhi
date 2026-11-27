@@ -37,19 +37,28 @@ export function SightingFilters({
     const qs = q.toString();
     return qs ? `${basePath}?${qs}` : basePath;
   };
-  const pill = (on: boolean) =>
-    `shrink-0 rounded-full border px-3 py-1 text-sm ${on ? "border-forest-600 bg-forest-50 font-medium" : "border-line bg-paper text-muted hover:text-ink"}`;
   const tabs = [{ key: "all" as const, label: "All" }, ...CATEGORIES];
 
   return (
     <div className="mb-6 space-y-3">
-      <nav aria-label="Type of living thing" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+      <nav
+        aria-label="Type of living thing"
+        className="-mx-4 flex overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0"
+      >
         {tabs.map((t) => {
           const n = counts[t.key];
           if (n === 0 && t.key !== "all" && t.key !== type) return null; // hide empty tabs to keep the bar short
+          const on = type === t.key;
           return (
-            <Link key={t.key} href={href(t.key, show)} className={pill(type === t.key)} aria-current={type === t.key ? "page" : undefined}>
-              {t.label} <span className="text-xs text-muted">{n}</span>
+            <Link
+              key={t.key}
+              href={href(t.key, show)}
+              aria-current={on ? "page" : undefined}
+              className={`-mb-px shrink-0 whitespace-nowrap border-b-[3px] px-3 py-2.5 text-sm transition-colors ${
+                on ? "border-forest-600 font-semibold text-ink" : "border-transparent text-muted hover:border-line hover:text-ink"
+              }`}
+            >
+              {t.label} <span className={`text-xs ${on ? "text-forest-700" : "text-muted"}`}>{n}</span>
             </Link>
           );
         })}
