@@ -1,19 +1,28 @@
 @import "tailwindcss";
 
-/* Forest green accent, lots of white space, plain type. */
+/*
+ * Vansakhi's look: a naturalist's field notebook from Kanha.
+ * Morning-mist page, leaf-white paper, deep sal green, meadow gold for "needs attention".
+ * Spectral (book serif) for titles, species names and journal reading; Mukta (made for English and Hindi) for the rest.
+ */
 @theme inline {
-  --color-forest-50: #eef6f0;
-  --color-forest-100: #d6eadb;
-  --color-forest-600: #2f6b3f;
-  --color-forest-700: #255733;
-  --color-forest-800: #1d4528;
-  --color-ink: #1c1f1d;
-  --color-muted: #5f6762;
-  --color-line: #e3e6e3;
-  --color-paper: #ffffff;
-  --color-wash: #f6f7f5;
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-forest-50: #e3ecdf;
+  --color-forest-100: #cfdcc9;
+  --color-forest-600: #2f5d3a;
+  --color-forest-700: #264d30;
+  --color-forest-800: #1d3c25;
+  --color-meadow-50: #f3ead0;
+  --color-meadow-100: #e9d9a8;
+  --color-meadow-600: #b08a2e;
+  --color-meadow-800: #6e5512;
+  --color-ink: #1f2b23;
+  --color-muted: #616b5c;
+  --color-line: #d9dfd3;
+  --color-paper: #fbfcf9;
+  --color-wash: #ecefe8;
+  --font-sans: var(--font-mukta), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-spectral), var(--font-mukta), Georgia, serif;
+  --font-mono: ui-monospace, monospace;
 }
 
 body {
@@ -21,10 +30,17 @@ body {
   color: var(--color-ink);
 }
 
+/* Keyboard focus stays visible everywhere. */
+:focus-visible {
+  outline: 2px solid var(--color-forest-600);
+  outline-offset: 2px;
+}
+
 /* Journal entries: the editor and the read-only view share these. */
 .journal-prose {
-  font-size: 1.0625rem;
-  line-height: 1.75;
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  line-height: 1.8;
 }
 .journal-prose > * + * {
   margin-top: 0.85em;
@@ -87,4 +103,29 @@ body {
   float: left;
   height: 0;
   pointer-events: none;
+}
+
+/* Status badges are shaped like a naturalist's specimen tag: square end with a punched eyelet, rounded tip. */
+.specimen-tag {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 3px 999px 999px 3px;
+  padding: 1px 10px 1px 18px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.specimen-tag::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: var(--color-paper);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.25);
 }

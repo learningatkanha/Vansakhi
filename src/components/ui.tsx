@@ -5,7 +5,7 @@ import type { ComponentProps, ReactNode } from "react";
 export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-xl font-semibold">{title}</h1>
+      <h1 className="font-serif text-[1.75rem] font-medium leading-tight">{title}</h1>
       {children}
     </div>
   );
@@ -49,7 +49,7 @@ export function ComingSoon({ phase, children }: { phase: number; children: React
   return (
     <Card className="py-16 text-center">
       <p className="text-muted">{children}</p>
-      <p className="mt-2 text-xs uppercase tracking-wide text-forest-600">Arrives in phase {phase}</p>
+      <p className="mt-2 text-sm text-forest-700">Coming in phase {phase}</p>
     </Card>
   );
 }

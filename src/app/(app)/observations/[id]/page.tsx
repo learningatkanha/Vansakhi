@@ -90,15 +90,15 @@ export default async function ObservationPage({ params, searchParams }: PageProp
         )}
 
         <div>
-          <h1 className="text-2xl font-semibold">{obs.title}</h1>
-          {obs.species && <p className="italic text-muted">{obs.species.scientific_name}</p>}
+          <h1 className="font-serif text-[2rem] font-semibold leading-tight">{obs.title}</h1>
+          {obs.species && <p className="font-serif text-lg italic text-muted">{obs.species.scientific_name}</p>}
           {obs.species?.hindi_name && <p className="text-sm text-muted">{obs.species.hindi_name}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
             <StatusBadge status={obs.id_status} />
             {obs.id_status === "verified" && (
               <span className="text-xs text-muted">
                 Verified by {obs.verifier?.name ?? "a researcher"}
-                {obs.verified_at ? ` · ${dateLabel(obs.verified_at.slice(0, 10))}` : ""}
+                {obs.verified_at ? `, ${dateLabel(obs.verified_at.slice(0, 10))}` : ""}
               </span>
             )}
             {mine && !reviewer && named && obs.id_status === "suggested" && (
@@ -159,8 +159,8 @@ export default async function ObservationPage({ params, searchParams }: PageProp
                     <Link href={`/journal/${e.id}`} className="min-w-0 flex-1 hover:text-forest-700">
                       <span className="block truncate font-medium">{e.title || "Untitled entry"}</span>
                       <span className="block truncate text-xs text-muted">
-                        {dateLabel(e.entry_date)} · {own ? "you" : (e.owner?.name ?? "a teammate")}
-                        {own && !e.is_shared ? " · private" : ""}
+                        {dateLabel(e.entry_date)}, {own ? "you" : (e.owner?.name ?? "a teammate")}
+                        {own && !e.is_shared ? " (private)" : ""}
                       </span>
                     </Link>
                     {own && (
@@ -237,10 +237,10 @@ export default async function ObservationPage({ params, searchParams }: PageProp
                           {sg.species?.common_name ?? sg.species?.scientific_name ?? "Unknown species"}
                           {current && <span className="ml-2 text-xs font-medium text-forest-700">✓ Current name</span>}
                         </p>
-                        {sg.species?.common_name && <p className="text-xs italic text-muted">{sg.species.scientific_name}</p>}
+                        {sg.species?.common_name && <p className="font-serif text-sm italic text-muted">{sg.species.scientific_name}</p>}
                         {sg.comment && <p className="mt-0.5">&ldquo;{sg.comment}&rdquo;</p>}
                         <p className="mt-0.5 text-xs text-muted">
-                          suggested by {theirs ? "you" : (sg.member?.name ?? "a teammate")} · {dateLabel(sg.created_at.slice(0, 10))}
+                          Suggested by {theirs ? "you" : (sg.member?.name ?? "a teammate")}, {dateLabel(sg.created_at.slice(0, 10))}
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1">
@@ -266,7 +266,7 @@ export default async function ObservationPage({ params, searchParams }: PageProp
                                 title="Use this name; you're sure (Self-confirmed)"
                                 className="h-8 rounded-full bg-forest-600 px-3 text-xs font-medium text-white hover:bg-forest-700"
                               >
-                                Accept · I&apos;m sure
+                                Accept, I&apos;m sure
                               </button>
                             </form>
                             <form action={acceptSuggestion}>

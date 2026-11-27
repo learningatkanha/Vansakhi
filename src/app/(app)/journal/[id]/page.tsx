@@ -32,12 +32,12 @@ export default async function EntryPage({ params, searchParams }: PageProps<"/jo
       </Link>
 
       <header className="mt-4">
-        <h1 className="text-3xl font-semibold leading-tight">{entry.title || "Untitled entry"}</h1>
+        <h1 className="font-serif text-[2.25rem] font-semibold leading-tight">{entry.title || "Untitled entry"}</h1>
         <p className="mt-2 text-sm text-muted">
           {formatWhen(`${entry.entry_date}T12:00:00+05:30`, false)}
-          {entry.place_name ? ` · ${entry.place_name}` : ""}
-          {entry.weather ? ` · ${entry.weather}` : ""}
-          {!mine && ` · by ${entry.owner?.name ?? "a teammate"}`}
+          {entry.place_name ? `, ${entry.place_name}` : ""}
+          {entry.weather ? `. ${entry.weather}` : ""}
+          {!mine && `. By ${entry.owner?.name ?? "a teammate"}`}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span

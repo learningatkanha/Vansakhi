@@ -51,7 +51,7 @@ export default async function ExplorePage({
         </p>
       </Card>
 
-      <h2 className="mb-3 text-lg font-semibold">The team&apos;s sightings</h2>
+      <h2 className="mb-4 font-serif text-2xl font-medium">The team&apos;s sightings</h2>
       <SightingFilters
         basePath="/explore"
         type={type}

@@ -34,7 +34,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               href="/add"
               className="mt-6 inline-block text-sm font-medium text-forest-700 hover:underline"
             >
-              Add the first one →
+              Add a sighting
             </Link>
           </Card>
         ) : (

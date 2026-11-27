@@ -1,4 +1,4 @@
-# Setting up Kanha Field Journal
+# Setting up Vansakhi
 
 About 45 minutes, once. You need accounts with four free services. Keep a notes file open: each step gives you
 one or two keys to paste into `.env.local` (on your laptop) and later into Vercel.

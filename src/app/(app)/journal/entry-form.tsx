@@ -274,7 +274,7 @@ export function EntryForm({ initial, initialSightings }: { initial: EntryFormVal
               {foundList?.length === 0 && <p className="p-1.5 text-xs text-muted">No sightings match.</p>}
               {foundList && foundList.length > 0 && (
                 <ul className="space-y-1">
-                  {!query.trim() && <li className="px-1.5 pb-0.5 text-[11px] uppercase tracking-wide text-muted">This day first, then nearby days</li>}
+                  {!query.trim() && <li className="px-1.5 pb-0.5 text-xs text-muted">This day first, then nearby days</li>}
                   {foundList.map((s) => {
                     const on = linked.includes(s.id);
                     return (

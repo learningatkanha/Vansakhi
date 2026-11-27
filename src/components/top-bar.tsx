@@ -15,10 +15,10 @@ function initials(member: Member) {
 
 export function TopBar({ member, reviewWaiting = null }: { member: Member; reviewWaiting?: number | null }) {
   return (
-    <header className="sticky top-0 z-10 border-b border-line bg-paper">
+    <header className="sticky top-0 z-30 border-b border-line bg-paper">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:gap-8">
-        <Link href="/" className="hidden text-base font-semibold sm:block">
-          Kanha Field Journal
+        <Link href="/" className="hidden font-serif text-[1.4rem] font-semibold leading-none text-forest-700 sm:block">
+          Vansakhi
         </Link>
         <NavLinks reviewWaiting={reviewWaiting} />
         <div className="ml-auto flex items-center gap-3">

@@ -65,7 +65,7 @@ export function SightingFilters({
               className={`-mb-px shrink-0 whitespace-nowrap rounded-t-xl border px-4 py-2 text-sm transition-colors ${
                 on
                   ? "border-line border-b-paper bg-paper font-semibold text-ink"
-                  : "border-transparent bg-line/70 text-muted hover:bg-line hover:text-ink"
+                  : "border-transparent bg-line/70 text-[#4d5649] hover:bg-line hover:text-ink"
               }`}
             >
               {t.label}{" "}
@@ -90,7 +90,7 @@ export function SightingFilters({
                 className={`-mb-px rounded-t-lg border px-3.5 py-1.5 text-sm transition-colors ${
                   on
                     ? "border-line border-b-paper bg-paper font-semibold text-ink"
-                    : "border-transparent bg-line/50 text-muted hover:bg-line hover:text-ink"
+                    : "border-transparent bg-line/50 text-[#4d5649] hover:bg-line hover:text-ink"
                 }`}
               >
                 {s.label}

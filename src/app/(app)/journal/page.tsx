@@ -76,10 +76,10 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
       <nav className="-mt-2 mb-6 flex gap-6 border-b border-line text-sm" aria-label="Journal sections">
         <span className="border-b-2 border-forest-600 pb-2 font-medium">Entries</span>
         <span className="pb-2 text-muted" title="Arrives later in phase 3">
-          Notes <span className="text-[10px] uppercase tracking-wide">soon</span>
+          Notes <span className="text-xs">(soon)</span>
         </span>
         <span className="pb-2 text-muted" title="Arrives later in phase 3">
-          Media <span className="text-[10px] uppercase tracking-wide">soon</span>
+          Media <span className="text-xs">(soon)</span>
         </span>
       </nav>
 
@@ -177,7 +177,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
           <p className="font-medium">No journal entries for this sighting yet.</p>
           {selected && (
             <Link href={`/journal/new?obs=${selected.id}`} className="mt-6 inline-block text-sm font-medium text-forest-700 hover:underline">
-              Write one →
+              Write one
             </Link>
           )}
         </Card>
@@ -195,7 +195,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
               <p className="font-medium">Your journal is empty.</p>
               <p className="mt-2 text-sm text-muted">Entries are private unless you choose to share them.</p>
               <Link href="/journal/new" className="mt-6 inline-block text-sm font-medium text-forest-700 hover:underline">
-                Write the first entry →
+                Write the first entry
               </Link>
             </>
           )}
@@ -204,7 +204,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
         <div className="space-y-10">
           {groups.map((g) => (
             <section key={g.month}>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">{g.month}</h2>
+              <h2 className="mb-3 font-serif text-xl font-medium text-ink">{g.month}</h2>
               <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-paper">
                 {g.entries.map((e) => {
                   const { day, weekday } = dayParts(e.entry_date);
@@ -212,11 +212,11 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
                     <li key={e.id}>
                       <Link href={`/journal/${e.id}`} className="flex gap-5 px-5 py-4 hover:bg-wash">
                         <div className="w-10 shrink-0 text-center">
-                          <p className="text-xl font-semibold leading-none">{day}</p>
-                          <p className="mt-1 text-[11px] uppercase text-muted">{weekday}</p>
+                          <p className="font-serif text-2xl font-semibold leading-none">{day}</p>
+                          <p className="mt-1 text-xs text-muted">{weekday}</p>
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate font-semibold">{e.title || "Untitled entry"}</p>
+                          <p className="truncate font-serif text-lg font-semibold leading-snug">{e.title || "Untitled entry"}</p>
                           {e.preview && <p className="mt-0.5 line-clamp-2 text-sm text-muted">{e.preview}</p>}
                           {e.sightings.length > 0 && (
                             <p className="mt-1 truncate text-xs text-forest-700">

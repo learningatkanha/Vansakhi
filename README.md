@@ -1,4 +1,4 @@
-# Kanha Field Journal
+# Vansakhi (Kanha field journal)
 
 A private web app for a small team to record wildlife and plant sightings, and for each member to keep a
 private field journal. Built with Next.js 16, Supabase, Cloudflare R2, Google Maps and GBIF.

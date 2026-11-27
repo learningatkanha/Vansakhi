@@ -6,8 +6,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-16">
       <div className="w-full max-w-sm">
-        <h1 className="text-center text-2xl font-semibold">Kanha Field Journal</h1>
-        <p className="mt-2 text-center text-sm text-muted">Sign in with your email and password.</p>
+        <h1 className="text-center font-serif text-4xl font-semibold text-forest-700">Vansakhi</h1>
+        <p className="mt-1 text-center font-serif text-lg italic text-muted">The team&apos;s field journal for Kanha</p>
         <div className="mt-8 rounded-xl border border-line bg-paper p-6">
           <LoginForm linkError={error === "link"} blocked={error === "blocked"} />
         </div>

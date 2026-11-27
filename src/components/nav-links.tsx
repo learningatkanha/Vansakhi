@@ -28,7 +28,7 @@ export function NavLinks({ reviewWaiting = null }: { reviewWaiting?: number | nu
           >
             {label}
             {href === "/review" && reviewWaiting ? (
-              <span className="ml-1 rounded-full bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-900">{reviewWaiting}</span>
+              <span className="ml-1 rounded-full bg-meadow-50 px-1.5 text-xs font-semibold text-meadow-800">{reviewWaiting}</span>
             ) : null}
           </Link>
         );
