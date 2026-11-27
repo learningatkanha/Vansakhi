@@ -79,17 +79,25 @@ export function SightingFilters({
         })}
       </nav>
       <div className="rounded-b-xl rounded-tr-xl border border-line bg-paper p-4 sm:p-5">
-        <div className="mb-4 flex gap-2 text-sm">
-          {SHOWS.map((s) => (
-            <Link
-              key={s.key}
-              href={href(type, s.key)}
-              className={`rounded-full px-2.5 py-0.5 ${show === s.key ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}
-            >
-              {s.label}
-            </Link>
-          ))}
-        </div>
+        <nav aria-label="Whose sightings" className="mb-5 flex gap-1 border-b border-line">
+          {SHOWS.map((s) => {
+            const on = show === s.key;
+            return (
+              <Link
+                key={s.key}
+                href={href(type, s.key)}
+                aria-current={on ? "page" : undefined}
+                className={`-mb-px rounded-t-lg border px-3.5 py-1.5 text-sm transition-colors ${
+                  on
+                    ? "border-line border-b-paper bg-paper font-semibold text-ink"
+                    : "border-transparent bg-line/50 text-muted hover:bg-line hover:text-ink"
+                }`}
+              >
+                {s.label}
+              </Link>
+            );
+          })}
+        </nav>
         {children}
       </div>
     </div>
