@@ -115,9 +115,16 @@ export function AddForm({
         <div>
           <Label htmlFor="species">Species</Label>
           <SpeciesSearch value={species} onSelect={setSpecies} onQueryChange={setSpeciesGuess} initialQuery={initial?.speciesGuess} />
-          <p className="mt-1.5 text-xs text-muted">
-            No idea? Leave it, or type what you think it is, and the team can help identify it.
-          </p>
+          {!species && speciesGuess.trim() ? (
+            <p className="mt-2 rounded-lg border border-amber-500 bg-amber-50 p-2.5 text-sm text-amber-900">
+              Pick the species from the list to name it. Typed text is saved only as a guess (Needs ID). If the common
+              name in the list looks slightly different, check the scientific name in italics.
+            </p>
+          ) : (
+            <p className="mt-1.5 text-xs text-muted">
+              No idea? Leave it, or type what you think it is, and the team can help identify it.
+            </p>
+          )}
           {species && (
             <div className="mt-3">
               <SureChoice value={sure} onChange={setSure} reviewer={reviewer} />
