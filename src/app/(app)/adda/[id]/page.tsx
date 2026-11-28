@@ -99,12 +99,6 @@ export default async function CreationPage({ params }: PageProps<"/adda/[id]">) 
         )}
       </div>
 
-      {c.moved_note && (
-        <blockquote className="mx-auto mt-10 max-w-2xl border-l-0 text-center font-serif text-lg italic text-muted">
-          &ldquo;{c.moved_note}&rdquo;
-        </blockquote>
-      )}
-
       {/* This moved me */}
       <div className="mt-10 flex flex-wrap items-center gap-4 border-t border-line pt-6">
         <form action={toggleMoved}>

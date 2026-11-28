@@ -1,10 +1,11 @@
 import Link from "next/link";
-import type { Creation } from "@/lib/creations";
+import type { Creation, InspiringSighting } from "@/lib/creations";
 import { kindInfo } from "@/lib/creation-kinds";
 import { formatWhen } from "@/lib/media";
 
 /** A creation in the Adda gallery: the artwork itself, the opening lines, or a listening card. */
-export function CreationCard({ c, me }: { c: Creation; me: string }) {
+export function CreationCard({ c, me, inspiredBy = [] }: { c: Creation; me: string; inspiredBy?: InspiringSighting[] }) {
+  const first = inspiredBy[0];
   const photo = c.media.find((m) => m.media_type === "photo" && m.url);
   const isAudio = c.kind === "audio_story" || c.kind === "audio_poem" || (!photo && c.media.some((m) => m.media_type === "audio"));
   const opening =
@@ -35,7 +36,30 @@ export function CreationCard({ c, me }: { c: Creation; me: string }) {
         <p className="mt-1 text-[13px] text-muted">
           {c.author_id === me ? "You" : (c.author?.name ?? "A teammate")}, {formatWhen(c.created_at, false)}
         </p>
-        {c.moved.length > 0 && <p className="text-[13px] text-muted">Moved {c.moved.length}</p>}
+        <div className="mt-2 flex items-center gap-2 border-t border-line pt-2 text-[13px] text-muted">
+          {first ? (
+            <>
+              {first.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={first.photo} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
+              ) : (
+                <span className="h-7 w-7 shrink-0 rounded-full bg-wash" />
+              )}
+              <span className="min-w-0 leading-snug">
+                <span className="block truncate">
+                  Inspired by <span className="text-ink">{first.title}</span>
+                  {inspiredBy.length > 1 ? ` and ${inspiredBy.length - 1} more` : ""}
+                </span>
+                <span className="block truncate text-xs">
+                  {first.observer_id === me ? "Your sighting" : `${first.observer_name ?? "A teammate"}'s sighting`}
+                </span>
+              </span>
+            </>
+          ) : (
+            <span>Inspired by Kanha</span>
+          )}
+        </div>
+        {c.moved.length > 0 && <p className="mt-1 text-[13px] text-muted">Moved {c.moved.length}</p>}
       </div>
     </Link>
   );

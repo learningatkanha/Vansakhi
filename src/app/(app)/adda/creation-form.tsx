@@ -28,7 +28,6 @@ export function CreationForm({ initial }: { initial: CreationInitial }) {
   const [kind, setKind] = useState<CreationKind | null>(initial.kind);
   const [title, setTitle] = useState(initial.title);
   const [textBody, setTextBody] = useState(initial.textBody);
-  const [movedNote, setMovedNote] = useState(initial.movedNote);
   const [linkUrl, setLinkUrl] = useState(initial.linkUrl);
   const [photos, setPhotos] = useState<UploadItem[]>(initial.photos);
   const [audio, setAudio] = useState<AudioValue | null>(initial.audio);
@@ -65,7 +64,7 @@ export function CreationForm({ initial }: { initial: CreationInitial }) {
         kind,
         title,
         textBody: usesText ? textBody : "",
-        movedNote,
+        movedNote: initial.movedNote,
         linkUrl: kind === "other" ? linkUrl : "",
         media: [
           ...(usesPhotos
@@ -153,19 +152,6 @@ export function CreationForm({ initial }: { initial: CreationInitial }) {
               <p className="mt-1 text-xs text-muted">For a song, video or anything that lives elsewhere.</p>
             </div>
           )}
-
-          <div>
-            <Label htmlFor="creation-moved">What moved you? (optional)</Label>
-            <textarea
-              id="creation-moved"
-              value={movedNote}
-              maxLength={1000}
-              onChange={(e) => setMovedNote(e.target.value)}
-              rows={2}
-              placeholder="The way it stood so still in the headlights…"
-              className="w-full rounded-lg border border-line bg-paper p-3 text-sm outline-none focus:border-forest-600 focus:ring-2 focus:ring-forest-100"
-            />
-          </div>
 
           <div>
             <p className="mb-1.5 text-sm font-medium">Inspired by</p>

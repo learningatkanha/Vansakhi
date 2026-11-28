@@ -4,7 +4,7 @@ import { FolderTabs } from "@/components/folder-tabs";
 import { Card, PageHeader } from "@/components/ui";
 import { getCurrentMember } from "@/lib/auth";
 import { KIND_TABS, type KindTab } from "@/lib/creation-kinds";
-import { creationCounts, listCreations } from "@/lib/creations";
+import { creationCounts, inspiringSightings, listCreations } from "@/lib/creations";
 
 /** Creative Adda: the team's paintings, stories, poems and recordings, inspired by sightings or by Kanha. */
 export default async function AddaPage({ searchParams }: PageProps<"/adda">) {
@@ -12,6 +12,9 @@ export default async function AddaPage({ searchParams }: PageProps<"/adda">) {
   const { kind } = await searchParams;
   const tab = (KIND_TABS.find((t) => t.key === kind)?.key ?? "all") as KindTab;
   const [creations, counts] = await Promise.all([listCreations(tab), creationCounts()]);
+  // The sightings behind the creations on this tab, for "Inspired by" on each card.
+  const sightings = await inspiringSightings([...new Set(creations.flatMap((c) => c.sightingIds))]);
+  const byId = new Map(sightings.map((s) => [s.id, s]));
 
   return (
     <>
@@ -50,7 +53,7 @@ export default async function AddaPage({ searchParams }: PageProps<"/adda">) {
         ) : (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {creations.map((c) => (
-              <CreationCard key={c.id} c={c} me={member.id} />
+              <CreationCard key={c.id} c={c} me={member.id} inspiredBy={c.sightingIds.flatMap((id) => byId.get(id) ?? [])} />
             ))}
           </div>
         )}
