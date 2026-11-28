@@ -12,6 +12,8 @@ import { DeleteButton } from "./delete-button";
 import { SuggestForm } from "./suggest-form";
 import { acceptSuggestion, deleteSuggestion, markSure } from "./actions";
 import { ReviewBox } from "./review-box";
+import { creationsForSighting } from "@/lib/creations";
+import { kindInfo } from "@/lib/creation-kinds";
 import { isReviewerRole } from "@/lib/id-status";
 
 function MiniMap({ lat, lng }: { lat: number; lng: number }) {
@@ -40,10 +42,11 @@ export default async function ObservationPage({ params, searchParams }: PageProp
   const { saved, links } = await searchParams;
   const [member, obs] = await Promise.all([getCurrentMember(), getObservation(id)]);
   if (!obs) notFound();
-  const [entries, myEntries, suggestions] = await Promise.all([
+  const [entries, myEntries, suggestions, creations] = await Promise.all([
     entriesForSighting(obs.id),
     myRecentEntries(member.id),
     suggestionsFor(obs.id),
+    creationsForSighting(obs.id),
   ]);
   const linkable = myEntries.filter((e) => !entries.some((x) => x.id === e.id));
   const writeHref = `/journal/new?obs=${obs.id}`;
@@ -134,6 +137,37 @@ export default async function ObservationPage({ params, searchParams }: PageProp
             </dl>
           </details>
         )}
+
+        <section className="rounded-xl border border-forest-100 bg-forest-50 p-4 text-sm">
+          {creations.length === 0 ? (
+            <>
+              <p className="font-serif text-lg font-medium text-forest-800">Did this moment stay with you?</p>
+              <p className="mt-1 text-forest-800/80">Turn it into a painting, a story, a poem or a recording for the Creative Adda.</p>
+            </>
+          ) : (
+            <>
+              <h2 className="font-serif text-lg font-medium text-forest-800">Inspired by this sighting</h2>
+              <ul className="mt-2 space-y-2">
+                {creations.map((c) => (
+                  <li key={c.id}>
+                    <Link href={`/adda/${c.id}`} className="block rounded-md bg-paper px-3 py-2 hover:ring-1 hover:ring-forest-600">
+                      <span className="block font-serif font-semibold">{c.title}</span>
+                      <span className="block text-xs text-muted">
+                        {kindInfo(c.kind).short} by {c.author_id === member.id ? "you" : (c.author?.name ?? "a teammate")}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <Link
+            href={`/adda/new?obs=${obs.id}`}
+            className="mt-3 inline-flex h-9 items-center rounded-full bg-forest-600 px-4 text-sm font-medium text-white hover:bg-forest-700"
+          >
+            {creations.length === 0 ? "Make something from it" : "Add your own creation"}
+          </Link>
+        </section>
 
         <section className="rounded-xl border border-line bg-paper p-4 text-sm">
           <div className="flex items-baseline justify-between gap-2">

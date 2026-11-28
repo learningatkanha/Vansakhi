@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   if (!(size > 0) || size > MAX_UPLOAD_BYTES)
     return NextResponse.json({ error: "Files must be under 100 MB." }, { status: 400 });
 
-  const ext = contentType.split("/")[1].replace("quicktime", "mov").replace("mpeg", "mp3");
+  const ext = contentType.split("/")[1].replace("quicktime", "mov").replace("mpeg", "mp3").replace(/^x-/, "");
   const month = new Date().toISOString().slice(0, 7);
   const key = `${userId}/${month}/${crypto.randomUUID()}.${ext}`;
 

@@ -18,6 +18,11 @@ const ALLOWED: Record<string, "photo" | "video" | "audio"> = {
   "audio/mp4": "audio",
   "audio/webm": "audio",
   "audio/wav": "audio",
+  "audio/x-wav": "audio",
+  "audio/x-m4a": "audio",
+  "audio/m4a": "audio",
+  "audio/aac": "audio",
+  "audio/ogg": "audio",
 };
 
 export function mediaTypeFor(contentType: string) {

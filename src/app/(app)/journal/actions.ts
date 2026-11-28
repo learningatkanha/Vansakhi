@@ -120,7 +120,7 @@ export async function deleteEntry(formData: FormData) {
   redirect(entry && entry.owner_id !== member.id ? "/journal?show=team&all=1" : "/journal");
 }
 
-export type UploadedMedia = { key: string; kind: "photo" | "video"; mime: string; size: number; takenAt?: string; lat?: number; lng?: number };
+export type UploadedMedia = { key: string; kind: "photo" | "video" | "audio"; mime: string; size: number; takenAt?: string; lat?: number; lng?: number };
 
 /** Records a photo or video uploaded from the journal editor, and returns its id and a view link. */
 export async function addEntryMedia(m: UploadedMedia): Promise<{ id: string; url: string } | { error: string }> {

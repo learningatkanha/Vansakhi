@@ -120,6 +120,8 @@ and **Run**, before the new version of the app goes live. Run each file once, in
   Admin page's Remove keeps it as "Name (former member)". Safe to run again.
 - `0011_review_and_verify.sql` (review): four naming states (Needs ID, Named, Self-confirmed, Verified),
   who verified and when, and the rules that only researchers/admins can verify.
+- `0012_creative_adda.sql` (Creative Adda): creations (paintings, stories, poems, recordings), their files,
+  the sightings that inspired them, and "This moved me". Safe to run again.
 
 ## Later phases
 

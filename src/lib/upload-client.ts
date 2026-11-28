@@ -8,7 +8,7 @@ import { HEVC_WARNING, UNPLAYABLE_WARNING, hasHevcMarker } from "@/lib/video-che
 export const MAX_BYTES = 100 * 1024 * 1024;
 const MAX_SIDE = 2560;
 
-export type Uploaded = { key: string; kind: "photo" | "video"; mime: string; size: number; takenAt?: string; lat?: number; lng?: number };
+export type Uploaded = { key: string; kind: "photo" | "video" | "audio"; mime: string; size: number; takenAt?: string; lat?: number; lng?: number };
 
 export function kindOf(file: File): "photo" | "video" | null {
   return file.type.startsWith("video/") ? "video" : file.type.startsWith("image/") ? "photo" : null;
@@ -97,16 +97,22 @@ function putWithProgress(url: string, body: Blob, contentType: string, onProgres
 }
 
 /** Resizes (photos), asks the server for a signed link, and uploads. Throws an Error with a readable message. */
-export async function uploadFile(file: File, onProgress: (p: number) => void = () => {}): Promise<Uploaded> {
-  const kind = kindOf(file);
-  if (!kind) throw new Error("Only photos and videos can be added.");
+export async function uploadFile(
+  file: File,
+  onProgress: (p: number) => void = () => {},
+  opts: { allowAudio?: boolean } = {},
+): Promise<Uploaded> {
+  // Audio (recordings for Creative Adda) only where the caller asks for it; sightings stay photos and videos.
+  const kind = kindOf(file) ?? (opts.allowAudio && file.type.startsWith("audio/") ? "audio" : null);
+  if (!kind) throw new Error(opts.allowAudio ? "Only photos, videos and audio can be added." : "Only photos and videos can be added.");
   let body: Blob = file;
   let exif = {};
   if (kind === "photo") {
     exif = await readPhotoData(file);
     body = await shrinkPhoto(file);
   }
-  const contentType = body.type || file.type;
+  // Recorders report e.g. "audio/webm;codecs=opus": keep just the type.
+  const contentType = (body.type || file.type).split(";")[0].trim();
   if (body.size > MAX_BYTES) throw new Error("Files must be under 100 MB.");
 
   const res = await fetch("/api/uploads/sign", {
