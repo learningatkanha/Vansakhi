@@ -19,6 +19,8 @@ export async function signInWithPassword(_prev: PasswordState, formData: FormDat
     console.error("password sign-in:", error.message);
     if (error.status === 429) return { error: "Too many attempts. Please wait a minute and try again." };
     if (error.code === "user_banned") return { error: "This account has been blocked. Please speak to the admin." };
+    if (error.code === "email_not_confirmed")
+      return { error: "This account hasn't been activated yet. Use the link in your invitation email, or ask the admin to reset your password." };
     if (error.status === 400) return { error: "That email and password don't match." };
     return { error: "Sign-in is unavailable right now. Please try again shortly." };
   }

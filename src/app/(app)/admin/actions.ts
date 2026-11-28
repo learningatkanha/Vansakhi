@@ -83,7 +83,8 @@ export async function resetPassword(_prev: ResetState, formData: FormData): Prom
 
   const password = temporaryPassword();
   if (passwordProblem(password)) return { error: "Could not make a password." };
-  const { error } = await createAdminClient().auth.admin.updateUserById(id, { password });
+  // Also confirm their email: someone invited by email who never clicked the link can't sign in otherwise.
+  const { error } = await createAdminClient().auth.admin.updateUserById(id, { password, email_confirm: true });
   if (error) {
     console.error("reset password:", error.message);
     return { error: "Could not reset the password." };
