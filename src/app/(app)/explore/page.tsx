@@ -7,6 +7,7 @@ import {
   myRecentSightings,
 } from "@/lib/observations";
 import { ObservationCard } from "@/components/observation-card";
+import { creationsBySighting } from "@/lib/creations";
 import { SightingFilters, readFilters } from "@/components/sighting-filters";
 import { ExploreSpecies } from "./explore-species";
 import { isReviewerRole } from "@/lib/id-status";
@@ -28,6 +29,7 @@ export default async function ExplorePage({
     ),
     categoryCounts(base),
   ]);
+  const inspired = await creationsBySighting(observations.map((o) => o.id));
   const sightings = mine.map((s) => ({
     id: s.id,
     title: s.title,
@@ -68,7 +70,7 @@ export default async function ExplorePage({
         ) : (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {observations.map((obs) => (
-              <ObservationCard key={obs.id} obs={obs} me={member.id} />
+              <ObservationCard key={obs.id} obs={obs} me={member.id} creations={inspired.get(obs.id)} />
             ))}
           </div>
         )}

@@ -3,6 +3,7 @@ import { getCurrentMember } from "@/lib/auth";
 import { categoryCounts, listObservations } from "@/lib/observations";
 import { SightingFilters, readFilters } from "@/components/sighting-filters";
 import { ObservationCard } from "@/components/observation-card";
+import { creationsBySighting } from "@/lib/creations";
 import { Card, PageHeader } from "@/components/ui";
 
 export default async function HomePage({ searchParams }: PageProps<"/">) {
@@ -16,6 +17,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     listObservations({ ...base, category: type === "all" ? undefined : type }),
     categoryCounts(base),
   ]);
+  const inspired = await creationsBySighting(observations.map((o) => o.id));
   const filtered = type !== "all" || show !== "all";
 
   return (
@@ -40,7 +42,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
         ) : (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {observations.map((obs) => (
-              <ObservationCard key={obs.id} obs={obs} me={member.id} />
+              <ObservationCard key={obs.id} obs={obs} me={member.id} creations={inspired.get(obs.id)} />
             ))}
           </div>
         )}

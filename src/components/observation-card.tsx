@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Observation } from "@/lib/observations";
 import { STATUS_HINT, STATUS_LABEL, type IdStatus } from "@/lib/id-status";
+import { kindInfo, type CreationKind } from "@/lib/creation-kinds";
 import { formatWhen } from "@/lib/media";
 
 export function StatusBadge({ status }: { status: IdStatus }) {
@@ -18,7 +19,19 @@ export function StatusBadge({ status }: { status: IdStatus }) {
 }
 
 /** Photo-first sighting card: species in the book serif, scientific name in italic, then when, where and who. */
-export function ObservationCard({ obs, me }: { obs: Observation; me: string }) {
+export function ObservationCard({
+  obs,
+  me,
+  creations = [],
+}: {
+  obs: Observation;
+  me: string;
+  creations?: { id: string; title: string; kind: CreationKind }[];
+}) {
+  const inspiredLine =
+    creations.length === 1
+      ? `Inspired ${/^[aeiou]/i.test(kindInfo(creations[0].kind).short) ? "an" : "a"} ${kindInfo(creations[0].kind).short.toLowerCase()}: ${creations[0].title}`
+      : `Inspired ${creations.length} creations`;
   const cover = obs.media[0];
   const scientific = obs.species?.common_name ? obs.species.scientific_name : null;
   const place = obs.place_name?.split(",")[0];
@@ -39,6 +52,16 @@ export function ObservationCard({ obs, me }: { obs: Observation; me: string }) {
         <div className="absolute left-2.5 top-2.5">
           <StatusBadge status={obs.id_status} />
         </div>
+        {creations.length > 0 && (
+          <div className="absolute right-2.5 top-2.5">
+            <span
+              title={`Inspired ${creations.length} creation${creations.length > 1 ? "s" : ""} in the Creative Adda`}
+              className="specimen-tag bg-paper text-forest-800 ring-1 ring-inset ring-forest-100"
+            >
+              ✎ {creations.length}
+            </span>
+          </div>
+        )}
         {cover?.media_type === "video" && (
           <span className="absolute bottom-2.5 right-2.5 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">▶ Video</span>
         )}
@@ -51,6 +74,11 @@ export function ObservationCard({ obs, me }: { obs: Observation; me: string }) {
           {place ? `, ${place}` : ""}
         </p>
         <p className="text-[13px] leading-snug text-muted">{obs.observer_id === me ? "You" : (obs.observer?.name ?? "A teammate")}</p>
+        {creations.length > 0 && (
+          <p className="mt-2 truncate border-t border-line pt-2 text-[13px] text-forest-800" title={creations.map((c) => c.title).join(", ")}>
+            ✎ {inspiredLine}
+          </p>
+        )}
       </div>
     </Link>
   );

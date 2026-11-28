@@ -138,3 +138,28 @@ export async function creationsForSighting(observationId: string): Promise<Creat
   const { data } = await supabase.from("creations").select(FIELDS).in("id", ids).order("created_at", { ascending: false });
   return Promise.all(((data ?? []) as unknown as Row[]).map(shape));
 }
+
+export type InspiredCreation = { id: string; title: string; kind: CreationKind };
+
+/** For sighting cards: the creations each sighting inspired (sightings with none are left out). */
+export async function creationsBySighting(observationIds: string[]): Promise<Map<string, InspiredCreation[]>> {
+  const map = new Map<string, InspiredCreation[]>();
+  if (observationIds.length === 0) return map;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("creation_links")
+    .select("observation_id, creation:creation_id (id, title, kind, created_at)")
+    .in("observation_id", observationIds.slice(0, 300));
+  if (error) {
+    console.error("creations by sighting:", error.message);
+    return map;
+  }
+  type R = { observation_id: string; creation: (InspiredCreation & { created_at: string }) | null };
+  for (const r of (data ?? []) as unknown as R[]) {
+    if (!r.creation) continue;
+    const list = map.get(r.observation_id) ?? [];
+    list.push({ id: r.creation.id, title: r.creation.title, kind: r.creation.kind });
+    map.set(r.observation_id, list);
+  }
+  return map;
+}
